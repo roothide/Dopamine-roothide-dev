@@ -43,6 +43,7 @@ This project is the RootHide Jailbreak implementation based on Dopamine.
 # Info
 
 [theos_discord_server](https://theos.dev/discord)
+
 [procursus_discord_server](https://discord.gg/QJDrrAJPDY)
 
 
