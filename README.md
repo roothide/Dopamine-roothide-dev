@@ -32,6 +32,6 @@ This project is the dopamine implementation of RootHide Jailbreak.
 
 [@opa334](https://github.com/opa334/)
 
-[@Procursus](https://github.com/ProcursusTeam/Procursus)
+[@procursus](https://github.com/ProcursusTeam/Procursus)
 
 [@theos](https://github.com/theos/theos)
