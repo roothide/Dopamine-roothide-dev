@@ -26,8 +26,10 @@ This project is the RootHide Jailbreak implementation based on Dopamine.
 - [ ]  Adapt bootstrap for RootHide
 - [ ]  Adapt Sileo store for RootHide
 - [ ]  Adapt Zebra store for RootHide
-- [ ]  Adapt Filza file manager for RootHide
 - [ ]  Adapt NewTerm app for RootHide
+- [ ]  Auto redirect to shim library for mach-o
+- [ ]  Adapt Filza file manager for RootHide
+- [ ]  Implement a blacklist selector app
 
 
 # Credits
