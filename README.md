@@ -4,7 +4,8 @@
 
 RootHide aims to provide a completely hidden jailbreak solution without inject/modify/patch/hook apps.
 
-This project is the dopamine implementation of RootHide Jailbreak.
+This project is the RootHide Jailbreak implementation based on Dopamine.
+
 
 # Progress
 
@@ -28,6 +29,7 @@ This project is the dopamine implementation of RootHide Jailbreak.
 - [ ]  Adapt Filza file manager for RootHide
 - [ ]  Adapt NewTerm app for RootHide
 
+
 # Credits
 
 [@opa334](https://github.com/opa334/)
@@ -35,3 +37,11 @@ This project is the dopamine implementation of RootHide Jailbreak.
 [@procursus](https://github.com/ProcursusTeam/Procursus)
 
 [@theos](https://github.com/theos/theos)
+
+
+# Info
+
+[procursus discord server](https://discord.gg/QJDrrAJPDY)
+
+[theos discord server](https://theos.dev/discord)
+
