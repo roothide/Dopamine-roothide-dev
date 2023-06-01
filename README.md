@@ -14,7 +14,8 @@ This project is the RootHide Jailbreak implementation based on Dopamine.
 - [x]  Remove system-wide dyld file patch
 - [x]  Unsandbox systemhook.dylib before injected it
 - [x]  Randomize systemhook.dylib file name
-- [ ]  Randomize /var/jb/ fixed path
+- [ ]  Randomize the /var/jb/ fixed path
+- [ ]  Add jailbreak environment variable
 - [ ]  linker/loader works with randomized /var/jb/
 - [ ]  Implements a middle layer to convert path
 - [ ]  Implement a libc shim to auto convert path
@@ -22,13 +23,13 @@ This project is the RootHide Jailbreak implementation based on Dopamine.
 - [ ]  Implement a libobjc shim to auto convert path
 - [ ]  Implement a libswift shim to auto convert path
 - [ ]  Auto redirect to shim library when compile/link
-- [ ]  Adapt theos for RootHide
-- [ ]  Adapt bootstrap for RootHide
+- [ ]  A tool to auto redirect to shim for mach-o
+- [ ]  Adapt theos tools for RootHide
+- [ ]  Adapt bootstraps for RootHide
 - [ ]  Adapt Sileo store for RootHide
 - [ ]  Adapt Zebra store for RootHide
 - [ ]  Adapt NewTerm app for RootHide
-- [ ]  Auto redirect to shim library for mach-o
-- [ ]  Adapt Filza file manager for RootHide
+- [ ]  Adapt Filza manager for RootHide
 - [ ]  Implement a blacklist selector app
 
 
