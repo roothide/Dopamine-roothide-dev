@@ -2,7 +2,7 @@
 
 # Dopamine(RootHide)
 
-RootHide aims to provide a hidden jailbreak solution without inject/modify/patch/hook apps.
+RootHide aims to provide a completely hidden jailbreak solution without inject/modify/patch/hook apps.
 
 This project is the dopamine implementation of RootHide Jailbreak.
 
