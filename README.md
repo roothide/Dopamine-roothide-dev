@@ -1,5 +1,3 @@
-<img src="https://github.com/opa334/Dopamine/assets/52459150/ed04dd3e-d879-456d-9aa3-d4ed44819c7e" width="64" />
-
 # Dopamine(RootHide)
 
 RootHide aims to provide a completely hidden jailbreak solution without inject/modify/patch/hook apps.
@@ -44,7 +42,7 @@ This project is the RootHide Jailbreak implementation based on Dopamine.
 
 # Info
 
-[procursus discord server](https://discord.gg/QJDrrAJPDY)
+[procursus_discord_server](https://discord.gg/QJDrrAJPDY)
 
-[theos discord server](https://theos.dev/discord)
+[theos_discord_server](https://theos.dev/discord)
 
