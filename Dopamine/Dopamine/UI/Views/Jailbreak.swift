@@ -54,10 +54,7 @@ func userspaceReboot() {
     }
     
     DispatchQueue.main.asyncAfter(deadline: .now() + 0.2, execute: {
-        guard let launchctlPath = rootifyPath(path: "/usr/bin/launchctl") else {
-            return
-        }
-        _ = execCmd(args: [launchctlPath, "reboot", "userspace"])
+        _ = execCmd(args: [rootifyPath(path: "/basebin/jbctl")!, "reboot_userspace"])
     })
 }
 
@@ -81,15 +78,8 @@ func isBootstrapped() -> Bool {
 
 func jailbreak(completion: @escaping (Error?) -> ()) {
     do {
-        if #available(iOS 15.4, *) {
-            // No Wifi fixup needed
-        }
-        else {
-            if wifiIsEnabled() {
-                setWifiEnabled(false)
-                Logger.log("Disabling Wi-Fi", isStatus: true)
-                sleep(5)
-            }
+        handleWifiFixBeforeJailbreak {message in 
+            Logger.log(message, isStatus: true)
         }
 
         Logger.log("Launching kexploitd", isStatus: true)
@@ -107,14 +97,6 @@ func jailbreak(completion: @escaping (Error?) -> ()) {
 
                 Logger.log(toPrint, isStatus: !verbose)
             }
-        }
-
-        if #available(iOS 15.4, *) {
-            // No Wifi fixup needed
-        }
-        else {
-            setWifiEnabled(true)
-            Logger.log("Enabling Wi-Fi", isStatus: true)
         }
         
         try Fugu15.startEnvironment()
@@ -142,6 +124,11 @@ func removeJailbreak() {
 
 func jailbrokenUpdateTweakInjectionPreference() {
     _ = execCmd(args: [CommandLine.arguments[0], "update_tweak_injection"])
+}
+
+func jailbrokenUpdateIDownloadEnabled() {
+    let iDownloadEnabled = dopamineDefaults().bool(forKey: "iDownloadEnabled")
+    _ = execCmd(args: [rootifyPath(path: "basebin/jbinit")!, iDownloadEnabled ? "start_idownload" : "stop_idownload"])
 }
 
 func changeMobilePassword(newPassword: String) {

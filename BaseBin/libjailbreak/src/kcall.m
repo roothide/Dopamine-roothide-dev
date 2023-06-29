@@ -155,7 +155,7 @@ uint64_t Fugu14Kcall_withThreadState(Fugu14KcallThread *callThread, KcallThreadS
 	return retval;
 }
 
-uint64_t Fugu14Kcall_withArguments(Fugu14KcallThread *callThread, uint64_t func, uint64_t argc, uint64_t *argv)
+uint64_t Fugu14Kcall_withArguments(Fugu14KcallThread *callThread, uint64_t func, uint64_t argc, const uint64_t *argv)
 {
 	if (argc >= 19) argc = 19;
 
@@ -193,7 +193,7 @@ uint64_t Fugu14Kcall_withArguments(Fugu14KcallThread *callThread, uint64_t func,
 	return Fugu14Kcall_withThreadState(callThread, &threadState);
 }
 
-uint64_t kcall(uint64_t func, uint64_t argc, uint64_t *argv)
+uint64_t kcall(uint64_t func, uint64_t argc, const uint64_t *argv)
 {
 	if (gKCallStatus != kKcallStatusFinalized) {
 		if (gIsJailbreakd) return 0;
@@ -367,16 +367,6 @@ void finalizePACPrimitives(void)
 	// Done!
 	// Thread's fault handler is now set to the br x22 gadget
 	gKCallStatus = kKcallStatusFinalized;
-
-	// Allocate a proper PPLRW placeholder page now if needed
-	if (!bootInfo_getUInt64(@"pplrw_placeholder_page")) {
-		uint64_t placeholderPage = 0;
-		if (kalloc(&placeholderPage, 0x4000) == 0) {
-			kwrite64(placeholderPage, placeholderPage);
-			bootInfo_setObject(@"pplrw_placeholder_page", @(placeholderPage));
-			PPLRW_updatePlaceholderPage(placeholderPage);
-		}
-	}
 }
 
 NSString *getExecutablePath(void)
