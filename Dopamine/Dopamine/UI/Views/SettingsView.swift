@@ -22,6 +22,7 @@ struct SettingsView: View {
     @State var mobilePasswordChangeAlertShown = false
     @State var mobilePasswordInput = "alpine"
     
+    @State var rebootRequiredAlertShown = false
     @State var removeJailbreakAlertShown = false
     @State var isSelectingPackageManagers = false
     @State var tweakInjectionToggledAlertShown = false
@@ -101,28 +102,32 @@ struct SettingsView: View {
                                     }
                                 }
                                 VStack {
+                                   Button(action: {
+                                       UIImpactFeedbackGenerator(style: .light).impactOccurred()
+                                       isEnvironmentHiddenState.toggle()
+                                       changeEnvironmentVisibility(hidden: !isEnvironmentHidden())
+                                   }) {
+                                       HStack {
+                                           Image(systemName: isEnvironmentHiddenState ? "eye" : "eye.slash")
+                                           Text(isEnvironmentHiddenState ? "Button_Unhide_Jailbreak" : "Button_Hide_Jailbreak")
+                                               .lineLimit(1)
+                                               .minimumScaleFactor(0.5)
+                                       }
+                                       .padding(.horizontal, 4)
+                                       .padding(8)
+                                       .frame(maxWidth: .infinity)
+                                       .overlay(
+                                           RoundedRectangle(cornerRadius: 8)
+                                               .stroke(Color.white.opacity(0.25), lineWidth: 0.5)
+                                       )
+                                   }
                                     Button(action: {
                                         UIImpactFeedbackGenerator(style: .light).impactOccurred()
-                                        isEnvironmentHiddenState.toggle()
-                                        changeEnvironmentVisibility(hidden: !isEnvironmentHidden())
-                                    }) {
-                                        HStack {
-                                            Image(systemName: isEnvironmentHiddenState ? "eye" : "eye.slash")
-                                            Text(isEnvironmentHiddenState ? "Button_Unhide_Jailbreak" : "Button_Hide_Jailbreak")
-                                                .lineLimit(1)
-                                                .minimumScaleFactor(0.5)
+                                        if isJailbroken() {
+                                            rebootRequiredAlertShown = true
+                                        } else {
+                                            removeJailbreakAlertShown = true
                                         }
-                                        .padding(.horizontal, 4)
-                                        .padding(8)
-                                        .frame(maxWidth: .infinity)
-                                        .overlay(
-                                            RoundedRectangle(cornerRadius: 8)
-                                                .stroke(Color.white.opacity(0.25), lineWidth: 0.5)
-                                        )
-                                    }
-                                    Button(action: {
-                                        UIImpactFeedbackGenerator(style: .light).impactOccurred()
-                                        removeJailbreakAlertShown = true
                                     }) {
                                         HStack {
                                             Image(systemName: "trash")
@@ -182,6 +187,11 @@ struct SettingsView: View {
                                 changeMobilePassword(newPassword: mobilePasswordInput)
                             })
                         }
+                        .alert("Settings_Remove_Jailbreak_Alert_Title", isPresented: $rebootRequiredAlertShown, actions: {
+                            Button("OK", role: .none) {
+                                reboot();
+                            }
+                        }, message: { Text("Jailbroken currently, please reboot the device.") })
                         .alert("Settings_Remove_Jailbreak_Alert_Title", isPresented: $removeJailbreakAlertShown, actions: {
                             Button("Button_Cancel", role: .cancel) { }
                             Button("Alert_Button_Uninstall", role: .destructive) {
