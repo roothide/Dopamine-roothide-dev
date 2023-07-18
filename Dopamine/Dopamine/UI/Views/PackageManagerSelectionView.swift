@@ -91,10 +91,10 @@ struct PackageManagerSelectionView: View {
                             let dpkgPath = rootifyPath(path: "usr/bin/dpkg")
                             if dpkgPath != nil {
                                 if selectedNames.contains("Sileo") {
-                                    _ = execCmd(args: [dpkgPath!, "-i", Bundle.main.bundlePath + "/sileo.deb"])
+                                    _ = execCmd(args: [dpkgPath!, "-i", "/rootfs" + Bundle.main.bundlePath + "/sileo.deb"])
                                 }
                                 if selectedNames.contains("Zebra") {
-                                    _ = execCmd(args: [dpkgPath!, "-i", Bundle.main.bundlePath + "/zebra.deb"])
+                                    _ = execCmd(args: [dpkgPath!, "-i", "/rootfs" + Bundle.main.bundlePath + "/zebra.deb"])
                                 }
                             }
                             
