@@ -75,7 +75,6 @@
 		8493424B2A705319002401E3 /* newterm3.deb */ = {isa = PBXFileReference; lastKnownFileType = archive.ar; path = newterm3.deb; sourceTree = "<group>"; };
 		8493424C2A705319002401E3 /* libjbdrw.deb */ = {isa = PBXFileReference; lastKnownFileType = archive.ar; path = libjbdrw.deb; sourceTree = "<group>"; };
 		8493424D2A705319002401E3 /* cocoatop.deb */ = {isa = PBXFileReference; lastKnownFileType = archive.ar; path = cocoatop.deb; sourceTree = "<group>"; };
-		84960E272A70299C0091E97F /* KernelPatchfinder */ = {isa = PBXFileReference; lastKnownFileType = wrapper; name = KernelPatchfinder; path = ../Packages/KernelPatchfinder; sourceTree = "<group>"; };
 		84BBFAC22A7117370054A68E /* cocoatop.deb */ = {isa = PBXFileReference; lastKnownFileType = archive.ar; name = cocoatop.deb; path = Dopamine/bootstrap/cocoatop.deb; sourceTree = "<group>"; };
 		84BBFAC42A71173D0054A68E /* newterm3.deb */ = {isa = PBXFileReference; lastKnownFileType = archive.ar; name = newterm3.deb; path = Dopamine/bootstrap/newterm3.deb; sourceTree = "<group>"; };
 		8C10C47029FDDE3B00930377 /* LICENSE_Fugu15.md */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = net.daringfireball.markdown; name = LICENSE_Fugu15.md; path = ../../../LICENSE_Fugu15.md; sourceTree = "<group>"; };
@@ -139,7 +138,6 @@
 			children = (
 				84BBFAC42A71173D0054A68E /* newterm3.deb */,
 				84BBFAC22A7117370054A68E /* cocoatop.deb */,
-				84960E272A70299C0091E97F /* KernelPatchfinder */,
 				938DADDD29F20ACA00C37952 /* Localizable.strings */,
 				9380BFFF29E8601600C0121A /* Fugu15KernelExploit */,
 				1502A42A2891BF130011CB6E /* Makefile */,
