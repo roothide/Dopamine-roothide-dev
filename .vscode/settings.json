@@ -1,0 +1,12 @@
+{
+    "files.associations": {
+        "event.h": "c",
+        "mount.h": "c",
+        "spawn.h": "c",
+        "syscall.h": "c",
+        "stat.h": "c",
+        "errno.h": "c",
+        "unistd.h": "c",
+        "string.h": "c"
+    }
+}

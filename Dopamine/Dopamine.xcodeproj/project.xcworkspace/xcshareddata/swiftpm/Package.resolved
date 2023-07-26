@@ -2,24 +2,6 @@
   "object": {
     "pins": [
       {
-        "package": "KernelPatchfinder",
-        "repositoryURL": "https://github.com/opa334/KernelPatchfinder",
-        "state": {
-          "branch": "master",
-          "revision": "2b8dccec4207613ee6a0939db6e77259d2f1d9fd",
-          "version": null
-        }
-      },
-      {
-        "package": "PatchfinderUtils",
-        "repositoryURL": "https://github.com/pinauten/PatchfinderUtils",
-        "state": {
-          "branch": "master",
-          "revision": "68f6e7f430d94bc01315b0f1e753e3764b9cc31d",
-          "version": null
-        }
-      },
-      {
         "package": "SwiftfulLoadingIndicators",
         "repositoryURL": "https://github.com/SwiftfulThinking/SwiftfulLoadingIndicators",
         "state": {

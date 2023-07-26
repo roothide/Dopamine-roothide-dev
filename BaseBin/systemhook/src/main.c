@@ -99,13 +99,62 @@ void killall(const char *executablePathToKill, bool softly)
 	free(info);
 }
 
-int posix_spawn_hook(pid_t *restrict pid, const char *restrict path,
+int posix_spawn_hook(pid_t *restrict pidp, const char *restrict path,
 					   const posix_spawn_file_actions_t *restrict file_actions,
 					   const posix_spawnattr_t *restrict attrp,
 					   char *const argv[restrict],
 					   char *const envp[restrict])
 {
-	return spawn_hook_common(pid, path, file_actions, attrp, argv, envp, (void *)posix_spawn);
+
+	posix_spawnattr_t attr;
+	if(!attrp) {
+		attrp = &attr;
+		posix_spawnattr_init(&attr);
+	}
+
+	short flags = 0;
+    posix_spawnattr_getflags(attrp, &flags);
+
+	if(flags&POSIX_SPAWN_START_SUSPENDED) abort();
+
+	#define POSIX_SPAWN_PROC_TYPE_DRIVER 0x700
+	int posix_spawnattr_getprocesstype_np(const posix_spawnattr_t * __restrict, int * __restrict) __API_AVAILABLE(macos(10.8), ios(6.0));
+
+	int proctype = 0;
+	posix_spawnattr_getprocesstype_np(attrp, &proctype);
+
+	bool suspend = (proctype != POSIX_SPAWN_PROC_TYPE_DRIVER);
+	bool should_resume = (flags&POSIX_SPAWN_START_SUSPENDED)==0;
+	bool patch_exec = suspend && (flags&POSIX_SPAWN_SETEXEC) != 0;
+
+	if(suspend) {
+		posix_spawnattr_setflags(attrp, flags|POSIX_SPAWN_START_SUSPENDED);
+	}
+
+	if(patch_exec) {
+		if(jbdswPatchExecAdd(should_resume)!=0) { //jdb fault? restore
+			posix_spawnattr_setflags(attrp, flags);
+			patch_exec = false;
+			suspend = false;
+		}
+	}
+	
+	int pid=0;
+	int ret = spawn_hook_common(&pid, path, file_actions, attrp, argv, envp, posix_spawn);
+	if(pidp) *pidp=pid;
+
+	posix_spawnattr_setflags(attrp, flags); //maybe caller will use it again?
+
+	if(patch_exec) { //exec failed?
+		jbdswPatchExecDel();
+	}
+	else if(suspend && ret==0 && pid>0) {
+
+		if(jbdswPatchSpawn(pid, should_resume)!=0) //jdb fault? let it go
+			if(should_resume) kill(pid, SIGCONT);
+	}
+
+	return ret;
 }
 
 int posix_spawnp_hook(pid_t *restrict pid, const char *restrict file,
@@ -115,7 +164,7 @@ int posix_spawnp_hook(pid_t *restrict pid, const char *restrict file,
 					   char *const envp[restrict])
 {
 	return resolvePath(file, NULL, ^int(char *path) {
-		return spawn_hook_common(pid, path, file_actions, attrp, argv, envp, (void *)posix_spawn);
+		return posix_spawn_hook(pid, path, file_actions, attrp, argv, envp);
 	});
 }
 
@@ -125,7 +174,7 @@ int execve_hook(const char *path, char *const argv[], char *const envp[])
 	posix_spawnattr_t attr;
 	posix_spawnattr_init(&attr);
 	posix_spawnattr_setflags(&attr, POSIX_SPAWN_SETEXEC);
-	return spawn_hook_common(NULL, path, NULL, &attr, argv, envp, (void *)posix_spawn);
+	return posix_spawn_hook(NULL, path, NULL, &attr, argv, envp);
 }
 
 int execle_hook(const char *path, const char *arg0, ... /*, (char *)0, char *const envp[] */)
@@ -229,8 +278,19 @@ int execvP_hook(const char *file, const char *search_path, char *const argv[])
 }
 
 
+#include <sys/mount.h>
 void* dlopen_hook(const char* path, int mode)
 {
+	if(stringEndsWith(path, "/basebin/libjailbreak.dylib"))
+	{
+		struct statfs s;
+		if(statfs(path, &s) == 0) {
+			if(strcmp(s.f_mntonname, "/private/preboot")==0) {
+				exit(0);
+			}
+		}
+	}
+
 	if (path) {
 		jbdswProcessLibrary(path);
 	}
@@ -335,12 +395,10 @@ bool shouldEnableTweaks(void)
 	const char *tweaksDisabledPathSuffixes[] = {
 		// System binaries
 		"/usr/libexec/xpcproxy",
-		"/private/preboot/xpcproxy",
-		"/var/containers/Bundle/xpcproxy",
-		"/private/var/containers/Bundle/xpcproxy",
+		"/basebin/xpcproxy",
 
 		// Dopamine app itself (jailbreak detection bypass tweaks can break it)
-		"Dopamine.app/Dopamine",
+		"/Dopamine.app/Dopamine",
 	};
 	for (size_t i = 0; i < sizeof(tweaksDisabledPathSuffixes) / sizeof(const char*); i++)
 	{
@@ -358,16 +416,22 @@ void applyKbdFix(void)
 	killall("/System/Library/TextInput/kbd", false);
 }
 
+char HOOK_DYLIB_PATH[PATH_MAX] = {0}; //"/usr/lib/systemhook.dylib"
+
 __attribute__((constructor)) static void initializer(void)
 {
 	JB_SandboxExtensions = strdup(getenv("JB_SANDBOX_EXTENSIONS"));
 	unsetenv("JB_SANDBOX_EXTENSIONS");
 	JB_RootPath = strdup(getenv("JB_ROOT_PATH"));
 
-	JBRAND = strdup(getenv("JBRAND"));
-	JBROOT = strdup(getenv("JBROOT"));
+	JBRAND = strdup(getenv("JBRAND"));// unsetenv("JBRAND");
+	JBROOT = strdup(getenv("JBROOT"));// unsetenv("JBROOT");
 
-	if (!strcmp(getenv("DYLD_INSERT_LIBRARIES"), "/usr/lib/systemhook.dylib")) {
+	struct dl_info di={0};
+    dladdr((void*)initializer, &di);
+	strncpy(HOOK_DYLIB_PATH, di.dli_fname, sizeof(HOOK_DYLIB_PATH));
+
+	if (!strcmp(getenv("DYLD_INSERT_LIBRARIES"), HOOK_DYLIB_PATH)) {
 		// Unset DYLD_INSERT_LIBRARIES, but only if we are the only thing contained in it
 		unsetenv("DYLD_INSERT_LIBRARIES");
 	}
@@ -389,13 +453,13 @@ __attribute__((constructor)) static void initializer(void)
 		else if (strcmp(gExecutablePath, "/usr/sbin/cfprefsd") == 0) {
 			int64_t debugErr = jbdswDebugMe();
 			if (debugErr == 0) {
-				dlopen_hook(JB_ROOT_PATH("/basebin/rootlesshooks.dylib"), RTLD_NOW);
+				//dlopen_hook(JB_ROOT_PATH("/basebin/rootlesshooks.dylib"), RTLD_NOW);
 			}
 		}
 		else if (strcmp(gExecutablePath, "/usr/libexec/watchdogd") == 0) {
 			int64_t debugErr = jbdswDebugMe();
 			if (debugErr == 0) {
-				dlopen_hook(JB_ROOT_PATH("/basebin/watchdoghook.dylib"), RTLD_NOW);
+				//dlopen_hook(JB_ROOT_PATH("/basebin/watchdoghook.dylib"), RTLD_NOW);
 			}
 		}
 	}

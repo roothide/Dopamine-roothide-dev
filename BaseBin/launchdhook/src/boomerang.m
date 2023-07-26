@@ -42,5 +42,7 @@ void boomerang_userspaceRebootIncoming()
 	int ret = posix_spawn_orig(&boomerangPid, jbrootPath(@"/basebin/boomerang").fileSystemRepresentation, NULL, NULL, NULL, NULL);
 	if (ret != 0) return;
 
+	JBLogDebug("boomerangPid=%d", boomerangPid);
+
 	dispatch_semaphore_wait(sema, DISPATCH_TIME_FOREVER);
 }

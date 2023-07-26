@@ -86,9 +86,19 @@ void sendPrimitives(void)
 
 int main(int argc, char* argv[])
 {
+	JBLogDebug("boomerang comming=%d", getpid());
+
 	setsid();
 	gHandler = [[FCHandler alloc] initWithReceiveFilePath:jbrootPath(@"/var/.communication/launchd_to_boomerang") sendFilePath:jbrootPath(@"/var/.communication/boomerang_to_launchd")];
 	getPrimitives();
+
+int patch_proc_csflags(int pid);
+int unrestrict(pid_t pid, int (*callback)(pid_t pid), bool should_resume);
+
+	//!
+	int ret=unrestrict(1, patch_proc_csflags, true);
+	JBLogDebug("boomerang unrestrict=%d", ret);
+
 	sendPrimitives();
 	return 0;
 }

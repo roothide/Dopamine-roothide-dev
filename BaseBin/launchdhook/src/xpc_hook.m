@@ -68,7 +68,7 @@ void xpc_handler_hook(uint64_t a1, uint64_t a2, xpc_object_t xdict)
 								uint64_t magicPage = 0;
 								int ret = handoffPPLPrimitives(clientPid, &magicPage);
 								if (ret == 0) {
-									JBLogDebug("LAUNCHD_JB_MSG_ID_GET_PPLRW: magicPage=$llx", magicPage);
+									JBLogDebug("LAUNCHD_JB_MSG_ID_GET_PPLRW: magicPage=%llx", magicPage);
 									xpc_dictionary_set_uint64(xreply, "magicPage", magicPage);
 								}
 								uint64_t slide = bootInfo_getUInt64(@"kernelslide");

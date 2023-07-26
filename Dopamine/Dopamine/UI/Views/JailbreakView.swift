@@ -39,6 +39,9 @@ struct JailbreakView: View {
         var action: (() -> ())? = nil
     }
     
+    @State var originalDopamineJailbroken = false
+    @State var showPreviewWarning = !isBootstrapped()
+    
     @State var isSettingsPresented = false
     @State var isCreditsPresented = false
     
@@ -181,6 +184,16 @@ struct JailbreakView: View {
                 UIApplication.shared.open(.init(string: "https://www.youtube.com/watch?v=dQw4w9WgXcQ")!)
             }
         }
+        .alert("Jailbroken", isPresented: $originalDopamineJailbroken, actions: {
+            Button("OK", role: .none) {
+                //reboot();
+            }
+        }, message: { Text("original dopamine jailbroken currently, please reboot the device.") })
+        .alert("Warning", isPresented:$showPreviewWarning, actions: {
+            Button("OK", role: .none) {
+                //reboot();
+            }
+        }, message: { Text("this is a technical preview version and is not recommended for end users.") })
     }
     
     
@@ -277,6 +290,11 @@ struct JailbreakView: View {
         VStack {
             Button {
                 UIImpactFeedbackGenerator(style: .medium).impactOccurred()
+                
+                if isOriginalDopamineJailbroken() {
+                    originalDopamineJailbroken = true
+                    return
+                }
                 
                 if requiresEnvironmentUpdate {
                     showingUpdatePopupType = .environment
@@ -518,8 +536,8 @@ struct JailbreakView: View {
     
     func checkForUpdates() async throws {
         if let currentAppVersion = Bundle.main.infoDictionary?["CFBundleShortVersionString"] as? String {
-            let owner = "opa334"
-            let repo = "Dopamine"
+            let owner = "RootHide"
+            let repo = "Dopamine-roothide"
             
             // Get the releases
             let releasesURL = URL(string: "https://api.github.com/repos/\(owner)/\(repo)/releases")!

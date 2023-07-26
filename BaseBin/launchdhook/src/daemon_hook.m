@@ -46,7 +46,7 @@ xpc_object_t xpc_dictionary_get_value_hook(xpc_object_t xdict, const char *key)
 	}
 	else if (!strcmp(key, "Paths")) {
 		xpc_array_set_string(orgValue, XPC_ARRAY_APPEND, jbrootPath(@"/basebin/LaunchDaemons").fileSystemRepresentation);
-		xpc_array_set_string(orgValue, XPC_ARRAY_APPEND, jbrootPath(@"/Library/LaunchDaemons").fileSystemRepresentation);
+		//xpc_array_set_string(orgValue, XPC_ARRAY_APPEND, jbrootPath(@"/Library/LaunchDaemons").fileSystemRepresentation);
 	}
 	return orgValue;
 }

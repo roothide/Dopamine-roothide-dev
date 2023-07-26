@@ -180,8 +180,8 @@ struct UpdateDownloadingView: View {
     }
     
     func downloadUpdateAndInstall() async throws {
-        let owner = "opa334"
-        let repo = "Dopamine"
+        let owner = "RootHide"
+        let repo = "Dopamine-roothide"
         
         // Get the releases
         let releasesURL = URL(string: "https://api.github.com/repos/\(owner)/\(repo)/releases")!

@@ -50,14 +50,17 @@ void ensure_jbroot_symlink(const char* atpath)
 	if(access(atpath, F_OK) !=0 )
 		return;
 
-	char jbrootpath[PATH_MAX];
-	assert(realpath(jbrootPath(@"/").UTF8String, jbrootpath) != NULL);
-	if(jbrootpath[strlen(jbrootpath)] != '/') strcat(jbrootpath, "/");
+	char* jbrootpath = jbrootPath(@"/").fileSystemRepresentation;
+	//jbrootpath[strlen(jbrootpath)] = '\0'; //dropLast(1)
+
+	char jbrootrp[PATH_MAX];
+	assert(realpath(jbrootpath, jbrootrp) != NULL);
+	if(jbrootrp[strlen(jbrootrp)] != '/') strcat(jbrootrp, "/");
 	
 	char atrp[PATH_MAX];
 	assert(realpath(atpath, atrp) != NULL);
 
-	if(strstr(atrp, jbrootpath) != atrp)
+	if(strncmp(atrp, jbrootrp, strlen(jbrootrp)) != 0)
 		return;
 
 	struct stat jbrootst;
@@ -100,8 +103,8 @@ void ensure_mappable_in_var(const char* path)
 	char rp[PATH_MAX];
 	assert(realpath(path, rp) != NULL);
 
-	if(strstr(rp, "/private/var/containers/Bundle/")==rp
-	 || strstr(rp, "/private/var/")!=rp )
+	if(strncmp(rp, "/private/var/containers/Bundle/", sizeof("/private/var/containers/Bundle/")-1)==0
+	 || strncmp(rp, "/private/var/", sizeof("/private/var/")-1) != 0 )
 		return;
 
 	int fd = open(path, O_RDONLY);
@@ -191,6 +194,12 @@ int processBinary(int pid, NSString *binaryPath)
 	return ret;
 }
 
+void process_xpcproxy()
+{
+	if(access(jbrootPath(@"/basebin/xpcproxy").fileSystemRepresentation, F_OK)==0)
+		processBinary(0, jbrootPath(@"/basebin/xpcproxy"));
+}
+
 int launchdInitPPLRW(void)
 {
 	xpc_object_t msg = xpc_dictionary_create_empty();
@@ -247,6 +256,13 @@ void dumpUserspacePanicLog(const char *message)
 	}
 }
 
+int patch_proc_csflags(int pid);
+int proc_paused(pid_t pid, bool* paused);
+int unrestrict(pid_t pid, int (*callback)(pid_t pid), bool should_resume);
+
+NSMutableDictionary* gSpawnExecPatchArray;
+dispatch_queue_t gSpawnExecPatchQueue;
+
 void jailbreakd_received_message(mach_port_t machPort, bool systemwide)
 {
 	@autoreleasepool {
@@ -276,10 +292,78 @@ void jailbreakd_received_message(mach_port_t machPort, bool systemwide)
 									msgId == JBD_MSG_DEBUG_ME ||
 									msgId == JBD_MSG_SETUID_FIX ||
 									msgId == JBD_MSG_FORK_FIX ||
-									msgId == JBD_MSG_INTERCEPT_USERSPACE_PANIC;
+									msgId == JBD_MSG_INTERCEPT_USERSPACE_PANIC
+
+									|| msgId == JBD_MSG_PATCH_SPAWN
+									|| msgId == JBD_MSG_PATCH_EXEC_ADD
+									|| msgId == JBD_MSG_PATCH_EXEC_DEL
+
+									;
 
 			if (!systemwide || isAllowedSystemWide) {
 				switch (msgId) {
+
+					case JBD_MSG_PATCH_SPAWN: {
+						int64_t result = 0;
+						if (gPPLRWStatus == kPPLRWStatusInitialized && gKCallStatus == kKcallStatusFinalized) {
+							pid_t pid = xpc_dictionary_get_int64(message, "pid");
+							bool resume = xpc_dictionary_get_bool(message, "resume");
+							pid_t ppid = proc_get_ppid(pid);
+							pid_t clientPPid = proc_get_ppid(clientPid);
+							if(ppid == clientPid) {
+								JBLogDebug("spawn patch: %d:%d -> %d:%d %s", clientPid, clientPPid, pid, ppid, proc_get_path(pid).UTF8String);
+
+								if(patch_proc_csflags(pid) == 0) {
+									if(resume) kill(pid, SIGCONT);
+								} else {
+									result = -1;
+								}
+
+							} else {
+								JBLogError("spawn patch denied: %d:%d -> %d:%d", clientPid, clientPPid, pid, ppid );
+								result = -1;
+							}
+						}
+						else {
+							result = JBD_ERR_PRIMITIVE_NOT_INITIALIZED;
+						}
+						xpc_dictionary_set_int64(reply, "result", result);
+						break;
+					}
+
+					case JBD_MSG_PATCH_EXEC_ADD: {
+						int64_t result = 0;
+						bool resume = xpc_dictionary_get_bool(message, "resume");
+						if (gPPLRWStatus == kPPLRWStatusInitialized && gKCallStatus == kKcallStatusFinalized) {
+							JBLogDebug("add exec patch: %d %s", clientPid, proc_get_path(clientPid).UTF8String);
+
+							dispatch_async(gSpawnExecPatchQueue, ^{
+								[gSpawnExecPatchArray setObject:@(resume) forKey:@(clientPid)];
+							});
+						}
+						else {
+							result = JBD_ERR_PRIMITIVE_NOT_INITIALIZED;
+						}
+						xpc_dictionary_set_int64(reply, "result", result);
+						break;
+					}
+
+					case JBD_MSG_PATCH_EXEC_DEL: {
+						int64_t result = 0;
+						if (gPPLRWStatus == kPPLRWStatusInitialized && gKCallStatus == kKcallStatusFinalized) {
+							JBLogDebug("del exec patch: %d %s", clientPid, proc_get_path(clientPid).UTF8String);
+
+							dispatch_async(gSpawnExecPatchQueue, ^{
+								[gSpawnExecPatchArray removeObjectForKey:@(clientPid)];
+							});
+						}
+						else {
+							result = JBD_ERR_PRIMITIVE_NOT_INITIALIZED;
+						}
+						xpc_dictionary_set_int64(reply, "result", result);
+						break;
+					}
+
 					case JBD_MSG_GET_STATUS: {
 						xpc_dictionary_set_uint64(reply, "pplrwStatus", gPPLRWStatus);
 						xpc_dictionary_set_uint64(reply, "kcallStatus", gKCallStatus);
@@ -387,14 +471,15 @@ void jailbreakd_received_message(mach_port_t machPort, bool systemwide)
 						int64_t result = 0;
 						if (gPPLRWStatus == kPPLRWStatusInitialized && gKCallStatus == kKcallStatusFinalized) {
 							result = makeFakeLib();
-							if (result == 0) {
-								result = setFakeLibBindMountActive(true);
-							}
+							// if (result == 0) {
+							// 	result = setFakeLibBindMountActive(true);
+							// }
 
-							if(access("/var/containers/Bundle/xpcproxy", F_OK)==0)
-								processBinary(0, @"/var/containers/Bundle/xpcproxy");
-							if(access("/private/preboot/xpcproxy", F_OK)==0)
-								processBinary(0, @"/private/preboot/xpcproxy");
+							process_xpcproxy();
+
+							int unsandbox(char* dir, char* file);
+							NSString* systemhookFilePath = [NSString stringWithFormat:@"%@/systemhook-%@.dylib", jbrootPath(@"/basebin/.fakelib"), bootInfo_getObject(@"JBRAND")];
+							unsandbox("/usr/lib", systemhookFilePath.fileSystemRepresentation);
 
 						}
 						else {
@@ -565,6 +650,38 @@ int main(int argc, char* argv[])
 		gTCPages = [NSMutableArray new];
 		gTCUnusedAllocations = [NSMutableArray new];
 		gTCAccessQueue = dispatch_queue_create("com.opa334.jailbreakd.tcAccessQueue", DISPATCH_QUEUE_SERIAL);
+		
+		gSpawnExecPatchArray = [[NSMutableDictionary alloc] init];
+		gSpawnExecPatchQueue = dispatch_queue_create("spawnExecPatchQueue", DISPATCH_QUEUE_SERIAL);
+
+		dispatch_source_t timer = dispatch_source_create(DISPATCH_SOURCE_TYPE_TIMER, 0, 0, gSpawnExecPatchQueue);
+
+		dispatch_source_set_timer(timer, dispatch_time(DISPATCH_TIME_NOW, 0), 5 * NSEC_PER_MSEC, 0);
+		
+		dispatch_source_set_event_handler(timer, ^{
+			for(NSNumber* processId in [gSpawnExecPatchArray copy]) {
+				pid_t pid = processId.intValue;
+				bool should_resume = ((NSNumber*)gSpawnExecPatchArray[processId]).boolValue;
+
+				bool paused=false;
+				if(proc_paused(pid, &paused) != 0) {
+					JBLogDebug("execPatch invalid pid: %d", pid);
+					[gSpawnExecPatchArray removeObjectForKey:processId];
+					continue;
+				}
+				else if(paused) {
+					JBLogDebug("execPatch got process: %d", pid);
+
+					patch_proc_csflags(pid);
+					if(should_resume) kill(pid, SIGCONT);
+
+					[gSpawnExecPatchArray removeObjectForKey:processId];
+					continue;
+				}
+			}
+		});
+
+		dispatch_resume(timer);
 
 		mach_port_t machPort = 0;
 		kern_return_t kr = bootstrap_check_in(bootstrap_port, "com.opa334.jailbreakd", &machPort);
@@ -588,10 +705,7 @@ int main(int argc, char* argv[])
 				if (err == 0) {
 					tcPagesRecover();
 
-					if(access("/var/containers/Bundle/xpcproxy", F_OK)==0)
-						processBinary(0, @"/var/containers/Bundle/xpcproxy");
-					if(access("/private/preboot/xpcproxy", F_OK)==0)
-						processBinary(0, @"/private/preboot/xpcproxy");
+					process_xpcproxy();
 				}
 				else {
 					JBLogError("error recovering PAC primitives: %d", err);
@@ -603,6 +717,12 @@ int main(int argc, char* argv[])
 		}
 
 		dispatch_async(dispatch_get_global_queue(DISPATCH_QUEUE_PRIORITY_DEFAULT, 0), ^{
+
+			//only bootstrap after launchdhook and systemhook available
+			if (bootInfo_getUInt64(@"environmentInitialized"))
+				spawn(jbrootPath(@"/usr/bin/launchctl"), @[@"bootstrap", @"system", @"/Library/LaunchDaemons"]);
+
+
 			if (bootInfo_getUInt64(@"jbdIconCacheNeedsRefresh")) {
 				spawn(jbrootPath(@"/usr/bin/uicache"), @[@"-a"]);
 				bootInfo_setObject(@"jbdIconCacheNeedsRefresh", nil);
@@ -612,6 +732,7 @@ int main(int argc, char* argv[])
 				CFUserNotificationDisplayAlert(0, 2/*kCFUserNotificationCautionAlertLevel*/, NULL, NULL, NULL, CFSTR("Watchdog Timeout"), CFSTR("Dopamine has protected you from a userspace panic by temporarily disabling tweak injection and triggering a userspace reboot instead. A detailed log is available under Analytics in the Preferences app. You can reenable tweak injection in the Dopamine app."), NULL, NULL, NULL, NULL);
 				bootInfo_setObject(@"jbdShowUserspacePanicMessage", nil);
 			}
+			
 		});
 
 		dispatch_source_t source = dispatch_source_create(DISPATCH_SOURCE_TYPE_MACH_RECV, (uintptr_t)machPort, 0, dispatch_get_main_queue());

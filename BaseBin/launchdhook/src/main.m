@@ -16,15 +16,17 @@
 
 int gLaunchdImageIndex = -1;
 
+char HOOK_DYLIB_PATH[PATH_MAX] = {0}; //"/usr/lib/systemhook.dylib"
+
 NSString *generateSystemWideSandboxExtensions(void)
 {
 	NSMutableString *extensionString = [NSMutableString new];
 
 
-	[extensionString appendString:[NSString stringWithUTF8String:sandbox_extension_issue_file("com.apple.app-sandbox.read", "/var/jbroot-1234567890ABCDEF", 0)]];
-	[extensionString appendString:@"|"];
-	[extensionString appendString:[NSString stringWithUTF8String:sandbox_extension_issue_file("com.apple.sandbox.executable", "/var/jbroot-1234567890ABCDEF", 0)]];
-	[extensionString appendString:@"|"];
+	// [extensionString appendString:[NSString stringWithUTF8String:sandbox_extension_issue_file("com.apple.app-sandbox.read", "/var/jbroot-1234567890ABCDEF", 0)]];
+	// [extensionString appendString:@"|"];
+	// [extensionString appendString:[NSString stringWithUTF8String:sandbox_extension_issue_file("com.apple.sandbox.executable", "/var/jbroot-1234567890ABCDEF", 0)]];
+	// [extensionString appendString:@"|"];
 
 
 	// Make /var/jb readable
@@ -113,6 +115,12 @@ __attribute__((constructor)) static void initializer(void)
 
 	JBRAND = strdup(((NSString*)bootInfo_getObject(@"JBRAND")).UTF8String);
 	JBROOT = strdup(((NSString*)bootInfo_getObject(@"JBROOT")).UTF8String);
+
+	NSString* systemhookFilePath = [NSString stringWithFormat:@"%@/systemhook-%s.dylib", jbrootPath(@"/basebin/.fakelib"), JBRAND];
+	strncpy(HOOK_DYLIB_PATH, systemhookFilePath.fileSystemRepresentation, sizeof(HOOK_DYLIB_PATH));
+
+	int unsandbox(char* dir, char* file);
+	unsandbox("/usr/lib", systemhookFilePath.fileSystemRepresentation);
 
 	proc_set_debugged_pid(getpid(), false);
 	initXPCHooks();

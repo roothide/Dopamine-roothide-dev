@@ -19,12 +19,17 @@ char *JB_RootPath = NULL;
 char* JBRAND=NULL;
 char* JBROOT=NULL;
 
-#define HOOK_DYLIB_PATH "/usr/lib/systemhook.dylib"
+extern char HOOK_DYLIB_PATH[];
+
 #define JBD_MSG_SETUID_FIX 21
 #define JBD_MSG_PROCESS_BINARY 22
 #define JBD_MSG_DEBUG_ME 24
 #define JBD_MSG_FORK_FIX 25
 #define JBD_MSG_INTERCEPT_USERSPACE_PANIC 26
+
+#define JBD_MSG_PATCH_SPAWN  1001
+#define JBD_MSG_PATCH_EXEC_ADD  1002
+#define JBD_MSG_PATCH_EXEC_DEL  1003
 
 #define JETSAM_MULTIPLIER 3
 #define XPC_TIMEOUT 0.1 * NSEC_PER_SEC
@@ -225,6 +230,48 @@ int64_t jbdswDebugMe(void)
 	return result;
 }
 
+int64_t jbdswPatchSpawn(int pid, bool resume)
+{
+	xpc_object_t message = xpc_dictionary_create_empty();
+	xpc_dictionary_set_uint64(message, "id", JBD_MSG_PATCH_SPAWN);
+	xpc_dictionary_set_int64(message, "pid", pid);
+	xpc_dictionary_set_bool(message, "resume", resume);
+	xpc_object_t reply = sendJBDMessageSystemWide(message);
+	int64_t result = -123;
+	if (reply) {
+		result  = xpc_dictionary_get_int64(reply, "result");
+		xpc_release(reply);
+	}
+	return result;
+}
+
+int64_t jbdswPatchExecAdd(bool resume)
+{
+	xpc_object_t message = xpc_dictionary_create_empty();
+	xpc_dictionary_set_uint64(message, "id", JBD_MSG_PATCH_EXEC_ADD);
+	xpc_dictionary_set_bool(message, "resume", resume);
+	xpc_object_t reply = sendJBDMessageSystemWide(message);
+	int64_t result = -1;
+	if (reply) {
+		result  = xpc_dictionary_get_int64(reply, "result");
+		xpc_release(reply);
+	}
+	return result;
+}
+
+int64_t jbdswPatchExecDel(void)
+{
+	xpc_object_t message = xpc_dictionary_create_empty();
+	xpc_dictionary_set_uint64(message, "id", JBD_MSG_PATCH_EXEC_DEL);
+	xpc_object_t reply = sendJBDMessageSystemWide(message);
+	int64_t result = -1;
+	if (reply) {
+		result  = xpc_dictionary_get_int64(reply, "result");
+		xpc_release(reply);
+	}
+	return result;
+}
+
 int64_t jbdswForkFix(pid_t childPid)
 {
 	xpc_object_t message = xpc_dictionary_create_empty();
@@ -408,10 +455,7 @@ kBinaryConfig configForBinary(const char* path, char *const argv[restrict])
 		if (!strcmp(processBlacklist[i], path)) return (kBinaryConfigDontInject | kBinaryConfigDontProcess);
 	}
 
-	if(strcmp(path, "/var/containers/Bundle/xpcproxy")==0
-	|| strcmp(path, "/private/var/containers/Bundle/xpcproxy")==0
-	|| strcmp(path, "/private/preboot/xpcproxy")==0
-	) {
+	if(stringEndsWith(path, "/basebin/xpcproxy")) {
 		return kBinaryConfigDontProcess;
 	}
 

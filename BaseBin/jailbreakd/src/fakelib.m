@@ -101,14 +101,15 @@ int carbonCopy(NSString *sourcePath, NSString *targetPath)
 
 int setFakeLibVisible(bool visible)
 {
-	bool isCurrentlyVisible = [[NSFileManager defaultManager] fileExistsAtPath:jbrootPath(@"/basebin/.fakelib/systemhook.dylib")];
+	NSString* systemhookFilePath = [NSString stringWithFormat:@"%@/systemhook-%@.dylib", jbrootPath(@"/basebin/.fakelib"), bootInfo_getObject(@"JBRAND")];
+	bool isCurrentlyVisible = [[NSFileManager defaultManager] fileExistsAtPath:systemhookFilePath];
 	if (isCurrentlyVisible != visible) {
 		NSString *stockDyldPath = jbrootPath(@"/basebin/.dyld");
 		NSString *patchedDyldPath = jbrootPath(@"/basebin/.dyld_patched");
 		NSString *dyldFakeLibPath = jbrootPath(@"/basebin/.fakelib/dyld");
 
 		NSString *systemhookPath = jbrootPath(@"/basebin/systemhook.dylib");
-		NSString *systemhookFakeLibPath = jbrootPath(@"/basebin/.fakelib/systemhook.dylib");
+		NSString *systemhookFakeLibPath = systemhookFilePath;
 
 		if (visible) {
 			if (![[NSFileManager defaultManager] copyItemAtPath:systemhookPath toPath:systemhookFakeLibPath error:nil]) return 10;
@@ -159,31 +160,31 @@ int makeFakeLib(void)
 	return setFakeLibVisible(true);
 }
 
-bool isFakeLibBindMountActive(void)
-{
-	struct statfs fs;
-	int sfsret = statfs("/usr/lib", &fs);
-	if (sfsret == 0) {
-		return !strcmp(fs.f_mntonname, "/usr/lib");
-	}
-	return NO;
-}
-
-int setFakeLibBindMountActive(bool active)
-{
-	__block int ret = -1;
-	bool alreadyActive = isFakeLibBindMountActive();
-	if (active != alreadyActive) {
-		if (active) {
-			run_unsandboxed(^{
-				ret = mount("bindfs", "/usr/lib", MNT_RDONLY, (void*)jbrootPath(@"/basebin/.fakelib").fileSystemRepresentation);
-			});
-		}
-		else {
-			run_unsandboxed(^{
-				ret = unmount("/usr/lib", 0);
-			});
-		}
-	}
-	return ret;
-}
+// bool isFakeLibBindMountActive(void)
+// {
+// 	struct statfs fs;
+// 	int sfsret = statfs("/usr/lib", &fs);
+// 	if (sfsret == 0) {
+// 		return !strcmp(fs.f_mntonname, "/usr/lib");
+// 	}
+// 	return NO;
+// }
+//
+// int setFakeLibBindMountActive(bool active)
+// {
+// 	__block int ret = -1;
+// 	bool alreadyActive = isFakeLibBindMountActive();
+// 	if (active != alreadyActive) {
+// 		if (active) {
+// 			run_unsandboxed(^{
+// 				ret = mount("bindfs", "/usr/lib", MNT_RDONLY, (void*)jbrootPath(@"/basebin/.fakelib").fileSystemRepresentation);
+// 			});
+// 		}
+// 		else {
+// 			run_unsandboxed(^{
+// 				ret = unmount("/usr/lib", 0);
+// 			});
+// 		}
+// 	}
+// 	return ret;
+// }

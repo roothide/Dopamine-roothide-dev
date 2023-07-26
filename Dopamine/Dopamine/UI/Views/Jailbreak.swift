@@ -64,11 +64,20 @@ func reboot() {
 }
 
 func isJailbroken() -> Bool {
+    
     if isSandboxed() { return false } // ui debugging
+    
+    if __isOriginalDopamineJailbroken() {
+        return false
+    }
     
     var jbdPid: pid_t = 0
     jbdGetStatus(nil, nil, &jbdPid)
     return jbdPid != 0
+}
+
+func isOriginalDopamineJailbroken() -> Bool {
+    return __isOriginalDopamineJailbroken();
 }
 
 func isBootstrapped() -> Bool {

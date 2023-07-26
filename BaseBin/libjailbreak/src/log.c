@@ -65,6 +65,7 @@ void JBDLogV(const char* prefix, const char *format, va_list va)
 		fprintf(logFile, "\n");
 
 		fflush(logFile);
+		fsync(fileno(logFile));
 		fclose(logFile);
 	}
 }
