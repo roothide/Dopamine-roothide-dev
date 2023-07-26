@@ -1,0 +1,100 @@
+{
+    "configurations": [
+        {
+            "type": "lldb",
+            "request": "launch",
+            "sourceLanguages": [
+                "swift"
+            ],
+            "name": "Debug KernelPatchfinderTester (Packages/KernelPatchfinder)",
+            "program": "${workspaceFolder:Dopamine-roothide}/Packages/KernelPatchfinder/.build/debug/KernelPatchfinderTester",
+            "args": [],
+            "cwd": "${workspaceFolder:Dopamine-roothide}/Packages/KernelPatchfinder",
+            "preLaunchTask": "swift: Build Debug KernelPatchfinderTester (Packages/KernelPatchfinder)"
+        },
+        {
+            "type": "lldb",
+            "request": "launch",
+            "sourceLanguages": [
+                "swift"
+            ],
+            "name": "Release KernelPatchfinderTester (Packages/KernelPatchfinder)",
+            "program": "${workspaceFolder:Dopamine-roothide}/Packages/KernelPatchfinder/.build/release/KernelPatchfinderTester",
+            "args": [],
+            "cwd": "${workspaceFolder:Dopamine-roothide}/Packages/KernelPatchfinder",
+            "preLaunchTask": "swift: Build Release KernelPatchfinderTester (Packages/KernelPatchfinder)"
+        },
+        {
+            "type": "lldb",
+            "request": "launch",
+            "sourceLanguages": [
+                "swift"
+            ],
+            "name": "Debug fastPathSign (Tools/fastPathSign)",
+            "program": "${workspaceFolder:Dopamine-roothide}/Tools/fastPathSign/.build/debug/fastPathSign",
+            "args": [],
+            "cwd": "${workspaceFolder:Dopamine-roothide}/Tools/fastPathSign",
+            "preLaunchTask": "swift: Build Debug fastPathSign (Tools/fastPathSign)"
+        },
+        {
+            "type": "lldb",
+            "request": "launch",
+            "sourceLanguages": [
+                "swift"
+            ],
+            "name": "Release fastPathSign (Tools/fastPathSign)",
+            "program": "${workspaceFolder:Dopamine-roothide}/Tools/fastPathSign/.build/release/fastPathSign",
+            "args": [],
+            "cwd": "${workspaceFolder:Dopamine-roothide}/Tools/fastPathSign",
+            "preLaunchTask": "swift: Build Release fastPathSign (Tools/fastPathSign)"
+        },
+        {
+            "type": "lldb",
+            "request": "launch",
+            "sourceLanguages": [
+                "swift"
+            ],
+            "name": "Debug installHaxx (Tools/installHaxx)",
+            "program": "${workspaceFolder:Dopamine-roothide}/Tools/installHaxx/.build/debug/installHaxx",
+            "args": [],
+            "cwd": "${workspaceFolder:Dopamine-roothide}/Tools/installHaxx",
+            "preLaunchTask": "swift: Build Debug installHaxx (Tools/installHaxx)"
+        },
+        {
+            "type": "lldb",
+            "request": "launch",
+            "sourceLanguages": [
+                "swift"
+            ],
+            "name": "Release installHaxx (Tools/installHaxx)",
+            "program": "${workspaceFolder:Dopamine-roothide}/Tools/installHaxx/.build/release/installHaxx",
+            "args": [],
+            "cwd": "${workspaceFolder:Dopamine-roothide}/Tools/installHaxx",
+            "preLaunchTask": "swift: Build Release installHaxx (Tools/installHaxx)"
+        },
+        {
+            "type": "lldb",
+            "request": "launch",
+            "sourceLanguages": [
+                "swift"
+            ],
+            "name": "Debug Exe2Driver (Tools/Exe2Driver)",
+            "program": "${workspaceFolder:Dopamine-roothide}/Tools/Exe2Driver/.build/debug/Exe2Driver",
+            "args": [],
+            "cwd": "${workspaceFolder:Dopamine-roothide}/Tools/Exe2Driver",
+            "preLaunchTask": "swift: Build Debug Exe2Driver (Tools/Exe2Driver)"
+        },
+        {
+            "type": "lldb",
+            "request": "launch",
+            "sourceLanguages": [
+                "swift"
+            ],
+            "name": "Release Exe2Driver (Tools/Exe2Driver)",
+            "program": "${workspaceFolder:Dopamine-roothide}/Tools/Exe2Driver/.build/release/Exe2Driver",
+            "args": [],
+            "cwd": "${workspaceFolder:Dopamine-roothide}/Tools/Exe2Driver",
+            "preLaunchTask": "swift: Build Release Exe2Driver (Tools/Exe2Driver)"
+        }
+    ]
+}
