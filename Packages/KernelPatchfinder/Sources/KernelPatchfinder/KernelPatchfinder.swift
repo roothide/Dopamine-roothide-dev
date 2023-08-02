@@ -44,8 +44,9 @@ open class KernelPatchfinder {
     
     /// `__PPLTEXT,__text` section
     public let pplText: PatchfinderSegment
+
     
-    public var namecache: (UInt64,UInt64)? {
+    public lazy var namecache: (UInt64,UInt64)? = {
         //MOV W10, #0x4C11DB7 in ncinit->(inline)init_crc32
         guard let crcflag = textExec.addrOf([0x5283B6EA,0x72A0982A]) else {
             return nil
@@ -85,7 +86,7 @@ open class KernelPatchfinder {
         }
                 
         return nil
-    }
+    }()
     
     /// Address of allproc
     public lazy var allproc: UInt64? = {

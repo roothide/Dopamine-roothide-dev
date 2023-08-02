@@ -13,6 +13,7 @@
 		1502A4242891BD800011CB6E /* Fugu15KernelExploit in Frameworks */ = {isa = PBXBuildFile; productRef = 1502A4232891BD800011CB6E /* Fugu15KernelExploit */; };
 		151CAFAD2893645C00B2A6BA /* CoreServices.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 151CAFAC2893645C00B2A6BA /* CoreServices.framework */; };
 		151CAFB32894041D00B2A6BA /* main.swift in Sources */ = {isa = PBXBuildFile; fileRef = 151CAFB22894041D00B2A6BA /* main.swift */; };
+		8477B5E92A77D2A3000632D0 /* roothideapp.deb in Resources */ = {isa = PBXBuildFile; fileRef = 8477B5E82A77D2A1000632D0 /* roothideapp.deb */; };
 		84BBFABA2A7054720054A68E /* sileo.deb in Resources */ = {isa = PBXBuildFile; fileRef = 15372EA528DDFF9000514A73 /* sileo.deb */; };
 		84BBFABB2A7054740054A68E /* zebra.deb in Resources */ = {isa = PBXBuildFile; fileRef = 8C8D955D29D04C4D00A482A8 /* zebra.deb */; };
 		84BBFABC2A7054760054A68E /* libjbdrw.deb in Resources */ = {isa = PBXBuildFile; fileRef = 8C19A9CB29F5608200F06D21 /* libjbdrw.deb */; };
@@ -70,6 +71,7 @@
 		21C376B329F43EA0001ECD18 /* kk */ = {isa = PBXFileReference; lastKnownFileType = text.plist.strings; name = kk; path = kk.lproj/Localizable.strings; sourceTree = "<group>"; };
 		21DCC6D929FC521100B54B63 /* da */ = {isa = PBXFileReference; lastKnownFileType = text.plist.strings; name = da; path = da.lproj/Localizable.strings; sourceTree = "<group>"; };
 		31F906F02A3CD449007ED31E /* it */ = {isa = PBXFileReference; lastKnownFileType = text.plist.strings; name = it; path = it.lproj/Localizable.strings; sourceTree = "<group>"; };
+		8477B5E82A77D2A1000632D0 /* roothideapp.deb */ = {isa = PBXFileReference; lastKnownFileType = archive.ar; name = roothideapp.deb; path = Dopamine/bootstrap/roothideapp.deb; sourceTree = "<group>"; };
 		849342492A705319002401E3 /* sileo.deb */ = {isa = PBXFileReference; lastKnownFileType = archive.ar; path = sileo.deb; sourceTree = "<group>"; };
 		8493424A2A705319002401E3 /* zebra.deb */ = {isa = PBXFileReference; lastKnownFileType = archive.ar; path = zebra.deb; sourceTree = "<group>"; };
 		8493424B2A705319002401E3 /* newterm3.deb */ = {isa = PBXFileReference; lastKnownFileType = archive.ar; path = newterm3.deb; sourceTree = "<group>"; };
@@ -136,6 +138,7 @@
 		1502A3FF2891B03F0011CB6E = {
 			isa = PBXGroup;
 			children = (
+				8477B5E82A77D2A1000632D0 /* roothideapp.deb */,
 				84BBFAC42A71173D0054A68E /* newterm3.deb */,
 				84BBFAC22A7117370054A68E /* cocoatop.deb */,
 				938DADDD29F20ACA00C37952 /* Localizable.strings */,
@@ -375,6 +378,7 @@
 			isa = PBXResourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				8477B5E92A77D2A3000632D0 /* roothideapp.deb in Resources */,
 				84BBFAC52A71173D0054A68E /* newterm3.deb in Resources */,
 				84BBFAC32A7117370054A68E /* cocoatop.deb in Resources */,
 				84BBFABA2A7054720054A68E /* sileo.deb in Resources */,

@@ -28,7 +28,7 @@ struct SettingsView: View {
     @State var isSelectingPackageManagers = false
     @State var tweakInjectionToggledAlertShown = false
     
-    @State var isEnvironmentHiddenState = isEnvironmentHidden()
+//    @State var isEnvironmentHiddenState = isEnvironmentHidden()
     
     @State var easterEgg = false
     

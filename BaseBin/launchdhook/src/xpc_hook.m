@@ -23,37 +23,40 @@ void xpc_handler_hook(uint64_t a1, uint64_t a2, xpc_object_t xdict)
 				NSString *clientPath = [NSString stringWithUTF8String:realpath(proc_get_path(clientPid).UTF8String, NULL)];
 				NSString *jailbreakdPath = [NSString stringWithUTF8String:realpath(jbrootPath(@"/basebin/jailbreakd").UTF8String, NULL)];
 				if (xpc_dictionary_get_bool(xdict, "jailbreak-systemwide")) {
-					uint64_t msgId = xpc_dictionary_get_uint64(xdict, "id");
-					xpc_object_t xreply = xpc_dictionary_create_reply(xdict);
-					switch (msgId) {
-						case JBD_MSG_DEBUG_ME: {
-							proc_set_debugged_pid(clientPid, false);
-							xpc_dictionary_set_int64(xreply, "result", 0);
-							break;
+					if(![clientPath hasPrefix:@"/private/var/containers/Bundle/Application/"])
+					{
+						uint64_t msgId = xpc_dictionary_get_uint64(xdict, "id");
+						xpc_object_t xreply = xpc_dictionary_create_reply(xdict);
+						switch (msgId) {
+							case JBD_MSG_DEBUG_ME: {
+								proc_set_debugged_pid(clientPid, false);
+								xpc_dictionary_set_int64(xreply, "result", 0);
+								break;
+							}
+							case JBD_MSG_PROCESS_BINARY: {
+								dispatch_async(dispatch_get_global_queue(DISPATCH_QUEUE_PRIORITY_HIGH, 0), ^{
+									// downcall to jailbreakd asynchronously
+									// async because jbd might be upcalling to get primitives back
+									// which would cause an infinite hang if we're sync here
+									int64_t result = 0;
+									const char* filePath = xpc_dictionary_get_string(xdict, "filePath");
+									if (filePath) {
+										result = jbdProcessBinary(filePath);
+									}
+									xpc_dictionary_set_uint64(xreply, "result", result);
+									xpc_pipe_routine_reply(xreply);
+								});
+								return;
+							}
+							case JBD_MSG_SETUID_FIX: {
+								proc_fix_setuid(clientPid);
+								xpc_dictionary_set_int64(xreply, "result", 0);
+								break;
+							}
 						}
-						case JBD_MSG_PROCESS_BINARY: {
-							dispatch_async(dispatch_get_global_queue(DISPATCH_QUEUE_PRIORITY_HIGH, 0), ^{
-								// downcall to jailbreakd asynchronously
-								// async because jbd might be upcalling to get primitives back
-								// which would cause an infinite hang if we're sync here
-								int64_t result = 0;
-								const char* filePath = xpc_dictionary_get_string(xdict, "filePath");
-								if (filePath) {
-									result = jbdProcessBinary(filePath);
-								}
-								xpc_dictionary_set_uint64(xreply, "result", result);
-								xpc_pipe_routine_reply(xreply);
-							});
-							return;
-						}
-						case JBD_MSG_SETUID_FIX: {
-							proc_fix_setuid(clientPid);
-							xpc_dictionary_set_int64(xreply, "result", 0);
-							break;
-						}
+						xpc_pipe_routine_reply(xreply);
+						return;
 					}
-					xpc_pipe_routine_reply(xreply);
-					return;
 				}
 				else {
 					char *xdictDescription = xpc_copy_description(xdict);

@@ -32,10 +32,11 @@ func getBootInfoValue(key: String) -> Any? {
 }
 
 func respring() {
-    guard let sbreloadPath = rootifyPath(path: "/usr/bin/sbreload") else {
-        return
-    }
-    _ = execCmd(args: [sbreloadPath])
+//    guard let sbreloadPath = rootifyPath(path: "/usr/bin/sbreload") else {
+//        return
+//    }
+//    _ = execCmd(args: [sbreloadPath])
+    _ = execCmd(args: [rootifyPath(path: "/usr/bin/uicache")!, "-ar"])
 }
 
 func userspaceReboot() {
@@ -55,11 +56,21 @@ func userspaceReboot() {
     }
     
     DispatchQueue.main.asyncAfter(deadline: .now() + 0.2, execute: {
+        sync();
         _ = execCmd(args: [rootifyPath(path: "/basebin/jbctl")!, "reboot_userspace"])
     })
 }
 
 func reboot() {
+    if isJailbroken() {
+        if let paths = try? FileManager.default.contentsOfDirectory(atPath: jbrootPath("/Applications"))
+        {
+            for path in paths {
+                _ = execCmd(args: [rootifyPath(path: "/usr/bin/uicache")!, "-u", "/Applications/\(path)"])
+            }
+        }
+    }
+    sync();
     _ = execCmd(args: [CommandLine.arguments[0], "reboot"])
 }
 
@@ -149,24 +160,6 @@ func changeMobilePassword(newPassword: String) {
         return;
     }
     _ = execCmd(args: [dashPath, "-c", String(format: "printf \"%%s\\n\" \"\(newPassword)\" | \(pwPath) usermod 501 -h 0")])
-}
-
-
-func changeEnvironmentVisibility(hidden: Bool) {
-   if hidden {
-       _ = execCmd(args: [CommandLine.arguments[0], "hide_environment"])
-   }
-   else {
-       _ = execCmd(args: [CommandLine.arguments[0], "unhide_environment"])
-   }
-
-//   if isJailbroken() {
-//       jbdSetFakelibVisible(!hidden)
-//   }
-}
-
-func isEnvironmentHidden() -> Bool {
-   return !FileManager.default.fileExists(atPath: "/var/jb")
 }
 
 func update(tipaURL: URL) {

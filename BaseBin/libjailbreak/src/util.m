@@ -393,6 +393,7 @@ uint64_t ucred_get_cr_label(uint64_t ucred_ptr)
 
 uint64_t task_get_first_thread(uint64_t task_ptr)
 {
+	//task->threads->prev
 	return kread_ptr(task_ptr + 0x60);
 }
 

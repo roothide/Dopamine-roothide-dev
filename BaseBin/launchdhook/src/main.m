@@ -22,19 +22,19 @@ NSString *generateSystemWideSandboxExtensions(void)
 {
 	NSMutableString *extensionString = [NSMutableString new];
 
+	char jbrootpath[PATH_MAX];
+	char jbrootpath2[PATH_MAX];
+	snprintf(jbrootpath, sizeof(jbrootpath), "/private/var/.jbroot-%s/", JBRAND);
+	snprintf(jbrootpath2, sizeof(jbrootpath2), "/private/var/containers/Bundle/.jbroot-%s/", JBRAND);
 
-	// [extensionString appendString:[NSString stringWithUTF8String:sandbox_extension_issue_file("com.apple.app-sandbox.read", "/var/jbroot-1234567890ABCDEF", 0)]];
-	// [extensionString appendString:@"|"];
-	// [extensionString appendString:[NSString stringWithUTF8String:sandbox_extension_issue_file("com.apple.sandbox.executable", "/var/jbroot-1234567890ABCDEF", 0)]];
-	// [extensionString appendString:@"|"];
-
-
-	// Make /var/jb readable
-	[extensionString appendString:[NSString stringWithUTF8String:sandbox_extension_issue_file("com.apple.app-sandbox.read", jbrootPath(@"/").fileSystemRepresentation, 0)]];
+	[extensionString appendString:[NSString stringWithUTF8String:sandbox_extension_issue_file("com.apple.app-sandbox.read", jbrootpath, 0)]];
+	[extensionString appendString:@"|"];
+	[extensionString appendString:[NSString stringWithUTF8String:sandbox_extension_issue_file("com.apple.sandbox.executable", jbrootpath, 0)]];
 	[extensionString appendString:@"|"];
 
-	// Make binaries in /var/jb executable
-	[extensionString appendString:[NSString stringWithUTF8String:sandbox_extension_issue_file("com.apple.sandbox.executable", jbrootPath(@"/").fileSystemRepresentation, 0)]];
+	[extensionString appendString:[NSString stringWithUTF8String:sandbox_extension_issue_file("com.apple.app-sandbox.read", jbrootpath2, 0)]];
+	[extensionString appendString:@"|"];
+	[extensionString appendString:[NSString stringWithUTF8String:sandbox_extension_issue_file("com.apple.sandbox.executable", jbrootpath2, 0)]];
 	[extensionString appendString:@"|"];
 
 	// Ensure the whole system has access to com.opa334.jailbreakd.systemwide
@@ -107,19 +107,20 @@ __attribute__((constructor)) static void initializer(void)
 		}
 	}
 
+	//set global var first
+	JBRAND = strdup(((NSString*)bootInfo_getObject(@"JBRAND")).UTF8String);
+	JBROOT = strdup(((NSString*)bootInfo_getObject(@"JBROOT")).UTF8String);
+
 	// System wide sandbox extensions and root path
 	setenv("JB_SANDBOX_EXTENSIONS", generateSystemWideSandboxExtensions().UTF8String, 1);
 	setenv("JB_ROOT_PATH", jbrootPath(@"/").fileSystemRepresentation, 1);
 	JB_SandboxExtensions = strdup(getenv("JB_SANDBOX_EXTENSIONS"));
 	JB_RootPath = strdup(getenv("JB_ROOT_PATH"));
 
-	JBRAND = strdup(((NSString*)bootInfo_getObject(@"JBRAND")).UTF8String);
-	JBROOT = strdup(((NSString*)bootInfo_getObject(@"JBROOT")).UTF8String);
-
 	NSString* systemhookFilePath = [NSString stringWithFormat:@"%@/systemhook-%s.dylib", jbrootPath(@"/basebin/.fakelib"), JBRAND];
 	strncpy(HOOK_DYLIB_PATH, systemhookFilePath.fileSystemRepresentation, sizeof(HOOK_DYLIB_PATH));
 
-	int unsandbox(char* dir, char* file);
+	 int unsandbox(const char* dir, const char* file);
 	unsandbox("/usr/lib", systemhookFilePath.fileSystemRepresentation);
 
 	proc_set_debugged_pid(getpid(), false);

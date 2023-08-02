@@ -8,7 +8,8 @@
 #include "syscall.h"
 #include "litehook.h"
 
-extern int64_t jbdswForkFix(pid_t childPid);
+ int64_t (*jbdswForkFix)(pid_t childPid);
+ 
 extern void _malloc_fork_prepare(void);
 extern void _malloc_fork_parent(void);
 extern void xpc_atfork_prepare(void);
@@ -99,5 +100,6 @@ __attribute__((visibility ("default"))) pid_t forkfix___fork(void)
 
 __attribute__((constructor)) static void initializer(void)
 {
+	jbdswForkFix = dlsym(RTLD_DEFAULT, "jbdswForkFix");
 	litehook_hook_function((void *)&__fork, (void *)&forkfix___fork);
 }

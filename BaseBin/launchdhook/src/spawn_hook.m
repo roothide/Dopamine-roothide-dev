@@ -7,10 +7,57 @@
 #import "substrate.h"
 #import <mach-o/dyld.h>
 
-void *posix_spawn_orig;
+NSString* getAppIdentifierForPath(const char* path)
+{
+	if(!path) return nil;
+	
+	char rp[PATH_MAX];
+	if(!realpath(path, rp)) return nil;
+
+#define APP_PATH_PREFIX "/private/var/containers/Bundle/Application/"
+
+	if(strncmp(rp, APP_PATH_PREFIX, sizeof(APP_PATH_PREFIX)-1) != 0)
+		return nil;
+
+	char* p = strstr(rp,".app/");
+	if(!p) return nil;
+	
+	p[sizeof(".app/")-1] = '\0';
+	strcat(rp, "Info.plist");
+
+	NSDictionary* appInfo = [NSDictionary dictionaryWithContentsOfFile:[NSString stringWithUTF8String:rp]];
+	if(!appInfo) return nil;
+
+	NSString* identifier = appInfo[@"CFBundleIdentifier"];
+	if(!identifier) return nil;
+
+	JBLogDebug("spawn app [%s] %s", identifier.UTF8String, path);
+
+	return identifier;
+}
+
+BOOL roothideBlacklistedApp(NSString* identifier)
+{
+	if(!identifier) return NO;
+
+	NSString* configFilePath = jbrootPath(@"/var/mobile/Library/RootHide/RootHideConfig.plist");
+	NSDictionary* roothideConfig = [NSDictionary dictionaryWithContentsOfFile:configFilePath];
+	if(!roothideConfig) return NO;
+
+	NSDictionary* appconfig = roothideConfig[@"appconfig"];
+	if(!appconfig) return NO;
+
+	NSNumber* blacklisted = appconfig[identifier];
+	if(!blacklisted) return NO;
+
+	return blacklisted.boolValue;
+}
+
+int (*posix_spawn_orig)(pid_t *restrict, const char *restrict, const posix_spawn_file_actions_t *restrict, posix_spawnattr_t *restrict, char *const[restrict], char *const[restrict]);
+
 int posix_spawn_hook(pid_t *restrict pidp, const char *restrict path,
 					   const posix_spawn_file_actions_t *restrict file_actions,
-					   const posix_spawnattr_t *restrict attrp,
+					   posix_spawnattr_t *restrict attrp,
 					   char *const argv[restrict],
 					   char *const envp[restrict])
 {
@@ -48,8 +95,7 @@ int posix_spawn_hook(pid_t *restrict pidp, const char *restrict path,
 			posix_spawnattr_setflags(attrp, flags|POSIX_SPAWN_START_SUSPENDED); //!
 			
 			// Say goodbye to this process
-			int (*orig)(pid_t *restrict, const char *restrict, const posix_spawn_file_actions_t *restrict, const posix_spawnattr_t *restrict, char *const[restrict], char *const[restrict]) = posix_spawn_orig;
-			return orig(pidp, path, file_actions, attrp, argv, envp);
+			return posix_spawn_orig(pidp, path, file_actions, attrp, argv, envp);
 		}
 	}
 
@@ -82,6 +128,12 @@ int posix_spawn_hook(pid_t *restrict pidp, const char *restrict path,
 		}
 	}*/
 
+	NSString* appIdentifier = getAppIdentifierForPath(path);
+
+	if(appIdentifier && roothideBlacklistedApp(appIdentifier)) {
+		JBLogDebug("roothideBlacklistedApp:%s, %s", appIdentifier.UTF8String, path);
+		return posix_spawn_orig(pidp, path, file_actions, attrp, argv, envp);
+	}
 
 	if (strcmp(path, "/usr/libexec/xpcproxy")==0 && argv[0] && argv[1])
 	{
@@ -155,5 +207,5 @@ int posix_spawn_hook(pid_t *restrict pidp, const char *restrict path,
 
 void initSpawnHooks(void)
 {
-	MSHookFunction(&posix_spawn, (void *)posix_spawn_hook, &posix_spawn_orig);
+	MSHookFunction(&posix_spawn, (void*)posix_spawn_hook, (void**)&posix_spawn_orig);
 }

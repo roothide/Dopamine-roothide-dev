@@ -8,8 +8,14 @@ include $(THEOS)/makefiles/common.mk
 
 TWEAK_NAME = rootlesshooks
 
-rootlesshooks_FILES = main.x installd.x cfprefsd.x
-rootlesshooks_CFLAGS = -fobjc-arc
-rootlesshooks_LDFLAGS = -rpath @loader_path/fallback
+rootlesshooks_FILES = $(wildcard *.x)
+rootlesshooks_CFLAGS = -Werror -fobjc-arc
+rootlesshooks_LDFLAGS = -rpath @loader_path/fallback -ljbpath
+
+lsd.x_CFLAGS = -fno-objc-arc #lsd using mrc
 
 include $(THEOS_MAKE_PATH)/tweak.mk
+
+after-rootlesshooks-all::
+	install_name_tool -change /Library/Frameworks/CydiaSubstrate.framework/CydiaSubstrate @rpath/CydiaSubstrate.framework/CydiaSubstrate $(THEOS_OBJ_DIR)/rootlesshooks.dylib
+	ldid -S $(THEOS_OBJ_DIR)/rootlesshooks.dylib

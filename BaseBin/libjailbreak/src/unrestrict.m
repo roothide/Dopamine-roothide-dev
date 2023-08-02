@@ -12,10 +12,8 @@
 #include <libproc.h>
 #include <libproc_private.h>
 
-#include <libjailbreak/log.h>
-
 #import <Foundation/Foundation.h>
-#import <libjailbreak/libjailbreak.h>
+#import "libjailbreak.h"
 
 
 /* Status values. */

@@ -14,6 +14,7 @@ NSString* getProcessName()
 
 %ctor
 {
+	NSLog(@"rootlesshooks coming... %@", safe_getExecutablePath());
 	NSString *processName = getProcessName();
 	if ([processName isEqualToString:@"installd"]) {
 		extern void installdInit(void);
@@ -22,5 +23,12 @@ NSString* getProcessName()
 	else if ([processName isEqualToString:@"cfprefsd"]) {
 		extern void cfprefsdInit(void);
 		cfprefsdInit();
+	}	else if ([processName isEqualToString:@"lsd"]) {
+		extern void lsdInit(void);
+		lsdInit();
+	}
+	else if ([processName isEqualToString:@"lsd"]) {
+		extern void lsdInit(void);
+		lsdInit();
 	}
 }

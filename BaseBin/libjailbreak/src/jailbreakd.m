@@ -38,7 +38,8 @@ xpc_object_t sendJBDMessage(xpc_object_t xdict)
 		if (pipe) {
 			int err = xpc_pipe_routine(pipe, xdict, &xreply);
 			if (err != 0) {
-				JBLogError("xpc_pipe_routine error on sending message to jailbreakd: %d / %s", err, xpc_strerror(err));
+				char *desc = xpc_copy_description(xdict);
+				JBLogError("xpc_pipe_routine error on sending message to jailbreakd: %d / %s\n%s", err, xpc_strerror(err), desc);
 				xreply = nil;
 			};
 		}

@@ -101,7 +101,7 @@ void killall(const char *executablePathToKill, bool softly)
 
 int posix_spawn_hook(pid_t *restrict pidp, const char *restrict path,
 					   const posix_spawn_file_actions_t *restrict file_actions,
-					   const posix_spawnattr_t *restrict attrp,
+					    posix_spawnattr_t *restrict attrp,
 					   char *const argv[restrict],
 					   char *const envp[restrict])
 {
@@ -159,7 +159,7 @@ int posix_spawn_hook(pid_t *restrict pidp, const char *restrict path,
 
 int posix_spawnp_hook(pid_t *restrict pid, const char *restrict file,
 					   const posix_spawn_file_actions_t *restrict file_actions,
-					   const posix_spawnattr_t *restrict attrp,
+					    posix_spawnattr_t *restrict attrp,
 					   char *const argv[restrict],
 					   char *const envp[restrict])
 {
@@ -418,6 +418,7 @@ void applyKbdFix(void)
 
 char HOOK_DYLIB_PATH[PATH_MAX] = {0}; //"/usr/lib/systemhook.dylib"
 
+#include <sys/syslog.h>
 __attribute__((constructor)) static void initializer(void)
 {
 	JB_SandboxExtensions = strdup(getenv("JB_SANDBOX_EXTENSIONS"));
@@ -450,10 +451,13 @@ __attribute__((constructor)) static void initializer(void)
 		if (strcmp(gExecutablePath, "/System/Library/CoreServices/SpringBoard.app/SpringBoard") == 0) {
 			applyKbdFix();
 		}
-		else if (strcmp(gExecutablePath, "/usr/sbin/cfprefsd") == 0) {
+		else if (strcmp(gExecutablePath, "/usr/sbin/cfprefsd") == 0
+		|| strcmp(gExecutablePath, "/usr/libexec/lsd") == 0) {
 			int64_t debugErr = jbdswDebugMe();
 			if (debugErr == 0) {
-				//dlopen_hook(JB_ROOT_PATH("/basebin/rootlesshooks.dylib"), RTLD_NOW);
+				//openlog("systemhook",LOG_PID,LOG_AUTH);syslog(LOG_DEBUG, "rootlesshooks coming...");closelog();
+				void* d = dlopen_hook(JB_ROOT_PATH("/basebin/rootlesshooks.dylib"), RTLD_NOW);
+				//openlog("systemhook",LOG_PID,LOG_AUTH);syslog(LOG_DEBUG, "rootlesshooks=%s=%p, %s", gExecutablePath, d, dlerror());closelog();
 			}
 		}
 		else if (strcmp(gExecutablePath, "/usr/libexec/watchdogd") == 0) {
@@ -467,7 +471,7 @@ __attribute__((constructor)) static void initializer(void)
 	if (shouldEnableTweaks()) {
 		int64_t debugErr = jbdswDebugMe();
 		if (debugErr == 0) {
-			const char *tweakLoaderPath = "/var/jb/usr/lib/TweakLoader.dylib";
+			const char *tweakLoaderPath = JB_ROOT_PATH("/usr/lib/TweakLoader.dylib");
 			if(access(tweakLoaderPath, F_OK) == 0)
 			{
 				void *tweakLoaderHandle = dlopen_hook(tweakLoaderPath, RTLD_NOW);
