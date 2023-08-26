@@ -115,7 +115,7 @@ int posix_spawn_hook(pid_t *restrict pidp, const char *restrict path,
 	short flags = 0;
     posix_spawnattr_getflags(attrp, &flags);
 
-	if(flags&POSIX_SPAWN_START_SUSPENDED) abort();
+	//??if(flags&POSIX_SPAWN_START_SUSPENDED) abort();
 
 	#define POSIX_SPAWN_PROC_TYPE_DRIVER 0x700
 	int posix_spawnattr_getprocesstype_np(const posix_spawnattr_t * __restrict, int * __restrict) __API_AVAILABLE(macos(10.8), ios(6.0));
@@ -132,7 +132,7 @@ int posix_spawn_hook(pid_t *restrict pidp, const char *restrict path,
 	}
 
 	if(patch_exec) {
-		if(jbdswPatchExecAdd(should_resume)!=0) { //jdb fault? restore
+		if(jbdswPatchExecAdd(path, should_resume)!=0) { //jdb fault? restore
 			posix_spawnattr_setflags(attrp, flags);
 			patch_exec = false;
 			suspend = false;
@@ -146,7 +146,7 @@ int posix_spawn_hook(pid_t *restrict pidp, const char *restrict path,
 	posix_spawnattr_setflags(attrp, flags); //maybe caller will use it again?
 
 	if(patch_exec) { //exec failed?
-		jbdswPatchExecDel();
+		jbdswPatchExecDel(path);
 	}
 	else if(suspend && ret==0 && pid>0) {
 
@@ -476,12 +476,26 @@ __attribute__((constructor)) static void initializer(void)
 			{
 				void *tweakLoaderHandle = dlopen_hook(tweakLoaderPath, RTLD_NOW);
 				if (tweakLoaderHandle != NULL) {
-					dlclose(tweakLoaderHandle);
+					dlclose(tweakLoaderHandle); //will hide TweakLoader module
 				}
 			}
 		}
 	}
 	freeExecutablePath();
+}
+
+
+#define RB2_USERREBOOT (0x2000000000000000llu)
+#define RB2_OBLITERATE (0x4000000000000000llu)
+#define RB2_FULLREBOOT (0x8000000000000000llu)
+#define ITHINK_HALT    (0x8000000000000008llu)
+int reboot3(uint64_t how, uint64_t unk);
+int reboot3_hook(uint64_t how, uint64_t unk)
+{
+	if(how == RB2_USERREBOOT) {
+		return jbdswRebootUserspace();
+	}
+	return reboot3(how, unk);
 }
 
 DYLD_INTERPOSE(posix_spawn_hook, posix_spawn)
@@ -500,3 +514,4 @@ DYLD_INTERPOSE(sandbox_init_hook, sandbox_init)
 DYLD_INTERPOSE(sandbox_init_with_parameters_hook, sandbox_init_with_parameters)
 DYLD_INTERPOSE(sandbox_init_with_extensions_hook, sandbox_init_with_extensions)
 DYLD_INTERPOSE(ptrace_hook, ptrace)
+DYLD_INTERPOSE(reboot3_hook, reboot3)

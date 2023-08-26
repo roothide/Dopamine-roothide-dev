@@ -132,3 +132,7 @@ NSString *proc_get_path(pid_t pid);
 int64_t proc_fix_setuid(pid_t pid);
 
 void run_unsandboxed(void (^block)(void));
+
+void ksync_lock();
+void ksync_start();
+void ksync_finish();

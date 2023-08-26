@@ -160,31 +160,31 @@ int makeFakeLib(void)
 	return setFakeLibVisible(true);
 }
 
-// bool isFakeLibBindMountActive(void)
-// {
-// 	struct statfs fs;
-// 	int sfsret = statfs("/usr/lib", &fs);
-// 	if (sfsret == 0) {
-// 		return !strcmp(fs.f_mntonname, "/usr/lib");
-// 	}
-// 	return NO;
-// }
-//
-// int setFakeLibBindMountActive(bool active)
-// {
-// 	__block int ret = -1;
-// 	bool alreadyActive = isFakeLibBindMountActive();
-// 	if (active != alreadyActive) {
-// 		if (active) {
-// 			run_unsandboxed(^{
-// 				ret = mount("bindfs", "/usr/lib", MNT_RDONLY, (void*)jbrootPath(@"/basebin/.fakelib").fileSystemRepresentation);
-// 			});
-// 		}
-// 		else {
-// 			run_unsandboxed(^{
-// 				ret = unmount("/usr/lib", 0);
-// 			});
-// 		}
-// 	}
-// 	return ret;
-// }
+bool isFakeLibBindMountActive(void)
+{
+	struct statfs fs;
+	int sfsret = statfs("/usr/lib", &fs);
+	if (sfsret == 0) {
+		return !strcmp(fs.f_mntonname, "/usr/lib");
+	}
+	return NO;
+}
+
+int setFakeLibBindMountActive(bool active)
+{
+	__block int ret = -1;
+	bool alreadyActive = isFakeLibBindMountActive();
+	if (active != alreadyActive) {
+		if (active) {
+			run_unsandboxed(^{
+				ret = mount("bindfs", "/usr/lib", MNT_RDONLY, (void*)jbrootPath(@"/basebin/.fakelib").fileSystemRepresentation);
+			});
+		}
+		else {
+			run_unsandboxed(^{
+				ret = unmount("/usr/lib", 0);
+			});
+		}
+	}
+	return ret;
+}

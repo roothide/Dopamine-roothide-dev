@@ -265,10 +265,66 @@ int patch_proc_csflags(int pid);
 int proc_paused(pid_t pid, bool* paused);
 int unrestrict(pid_t pid, int (*callback)(pid_t pid), bool should_resume);
 
-dispatch_queue_t gSpawnExecPatchQueue;
-dispatch_source_t gSpawnExecPatchTimer;
 BOOL gSpawnExecPatchTimerSuspend;
-NSMutableDictionary* gSpawnExecPatchArray;
+dispatch_queue_t gSpawnExecPatchQueue=nil;
+NSMutableDictionary* gSpawnExecPatchArray=nil;
+
+void spawnExecPatchTimer()
+{
+	@autoreleasepool {
+
+	for(NSNumber* processId in [gSpawnExecPatchArray copy]) {
+
+		pid_t pid = [processId intValue];
+		bool should_resume = [gSpawnExecPatchArray[processId] boolValue];
+
+		bool paused=false;
+		if(proc_paused(pid, &paused) != 0) {
+			JBLogDebug("execPatch invalid pid: %d, total=%d", pid, gSpawnExecPatchArray.count);
+			[gSpawnExecPatchArray removeObjectForKey:processId];
+			continue;
+		}
+		else if(paused) {
+			JBLogDebug("execPatch got process: %d, total=%d", pid, gSpawnExecPatchArray.count);
+
+			patch_proc_csflags(pid);
+
+			if(should_resume) kill(pid, SIGCONT);
+
+			[gSpawnExecPatchArray removeObjectForKey:processId];
+			continue;
+		}
+	}
+
+	if(gSpawnExecPatchArray.count) {
+		dispatch_async(gSpawnExecPatchQueue, ^{spawnExecPatchTimer();});
+		usleep(5*1000);
+	} else {
+		gSpawnExecPatchTimerSuspend = YES;
+	}
+
+	}
+}
+void initSpawnExecPatch()
+{
+	gSpawnExecPatchArray = [[NSMutableDictionary alloc] init];
+	gSpawnExecPatchQueue = dispatch_queue_create("spawnExecPatchQueue", DISPATCH_QUEUE_SERIAL);
+	gSpawnExecPatchTimerSuspend = YES;
+}
+
+void safeRebootUserspace()
+{
+	ksync_lock(); //wait all atomic kernel operation then lock 
+
+	sync();
+
+	reboot3(RB2_USERREBOOT);
+
+	while(true) {
+		JBLogDebug("wait for userspace reboot...");
+		sync();
+	}
+}
 
 void jailbreakd_received_message(mach_port_t machPort, bool systemwide)
 {
@@ -292,7 +348,7 @@ void jailbreakd_received_message(mach_port_t machPort, bool systemwide)
 			msgId = xpc_dictionary_get_uint64(message, "id");
 
 			char *description = xpc_copy_description(message);
-			JBLogDebug("received %s message %d with dictionary: %s", systemwide ? "systemwide" : "", msgId, description);
+			JBLogDebug("received %s message %d from (%d)%s with dictionary: %s", systemwide ? "systemwide" : "", msgId, clientPid, proc_get_path(clientPid).UTF8String, description);
 			free(description);
 
 			BOOL isAllowedSystemWide = msgId == JBD_MSG_PROCESS_BINARY || 
@@ -301,6 +357,7 @@ void jailbreakd_received_message(mach_port_t machPort, bool systemwide)
 									msgId == JBD_MSG_FORK_FIX ||
 									msgId == JBD_MSG_INTERCEPT_USERSPACE_PANIC
 
+									|| msgId == JBD_MSG_REBOOT_USERSPACE
 									|| msgId == JBD_MSG_PATCH_SPAWN
 									|| msgId == JBD_MSG_PATCH_EXEC_ADD
 									|| msgId == JBD_MSG_PATCH_EXEC_DEL
@@ -309,6 +366,18 @@ void jailbreakd_received_message(mach_port_t machPort, bool systemwide)
 
 			if (!systemwide || isAllowedSystemWide) {
 				switch (msgId) {
+
+					case JBD_MSG_REBOOT_USERSPACE: {
+						int64_t result = -1;
+						JBLogDebug("userspace reboot!!!!!!!");
+						if (boolValueForEntitlement(&auditToken, "com.apple.private.xpc.launchd.userspace-reboot") == true) {
+							safeRebootUserspace();
+						} else {
+							result = -2;
+						}
+						xpc_dictionary_set_int64(reply, "result", result);
+						break;
+					}
 
 					case JBD_MSG_PATCH_SPAWN: {
 						int64_t result = 0;
@@ -327,7 +396,7 @@ void jailbreakd_received_message(mach_port_t machPort, bool systemwide)
 								}
 
 							} else {
-								JBLogError("spawn patch denied: %d:%d -> %d:%d", clientPid, clientPPid, pid, ppid );
+								JBLogError("spawn patch denied: %d:%d -> %d:%d %s", clientPid, clientPPid, pid, ppid, proc_get_path(pid).UTF8String );
 								result = -1;
 							}
 						}
@@ -341,12 +410,14 @@ void jailbreakd_received_message(mach_port_t machPort, bool systemwide)
 					case JBD_MSG_PATCH_EXEC_ADD: {
 						int64_t result = 0;
 						bool resume = xpc_dictionary_get_bool(message, "resume");
+						const char* execfile = xpc_dictionary_get_string(message, "execfile");
 						if (gPPLRWStatus == kPPLRWStatusInitialized && gKCallStatus == kKcallStatusFinalized) {
-							JBLogDebug("add exec patch: %d %s", clientPid, proc_get_path(clientPid).UTF8String);
+							JBLogDebug("add exec patch: %d %s", clientPid, execfile);
 							dispatch_async(gSpawnExecPatchQueue, ^{
 								[gSpawnExecPatchArray setObject:@(resume) forKey:@(clientPid)];
 								if(gSpawnExecPatchTimerSuspend) {
-									dispatch_resume(gSpawnExecPatchTimer);
+									JBLogDebug("wakeup spawmExecPatchTimer...");
+									dispatch_async(gSpawnExecPatchQueue, ^{spawnExecPatchTimer();});
 									gSpawnExecPatchTimerSuspend=NO;
 								}
 							});
@@ -360,8 +431,9 @@ void jailbreakd_received_message(mach_port_t machPort, bool systemwide)
 
 					case JBD_MSG_PATCH_EXEC_DEL: {
 						int64_t result = 0;
+						const char* execfile = xpc_dictionary_get_string(message, "execfile");
 						if (gPPLRWStatus == kPPLRWStatusInitialized && gKCallStatus == kKcallStatusFinalized) {
-							JBLogDebug("del exec patch: %d %s", clientPid, proc_get_path(clientPid).UTF8String);
+							JBLogDebug("del exec patch: %d %s", clientPid, execfile);
 							dispatch_async(gSpawnExecPatchQueue, ^{
 								[gSpawnExecPatchArray removeObjectForKey:@(clientPid)];
 							});
@@ -480,16 +552,18 @@ void jailbreakd_received_message(mach_port_t machPort, bool systemwide)
 						int64_t result = 0;
 						if (gPPLRWStatus == kPPLRWStatusInitialized && gKCallStatus == kKcallStatusFinalized) {
 							result = makeFakeLib();
-							// if (result == 0) {
-							// 	result = setFakeLibBindMountActive(true);
-							// }
+
+							/*
+							if (result == 0) {
+								result = setFakeLibBindMountActive(true);
+							}
+							/*/
+							int unsandbox(const char* dir, const char* file);
+							NSString* systemhookFilePath = [NSString stringWithFormat:@"%@/systemhook-%@.dylib", jbrootPath(@"/basebin/.fakelib"), bootInfo_getObject(@"JBRAND")];
+							unsandbox("/usr/lib", systemhookFilePath.fileSystemRepresentation); 
+							//*/
 
 							process_xpcproxy();
-
-							 int unsandbox(const char* dir, const char* file);
-							NSString* systemhookFilePath = [NSString stringWithFormat:@"%@/systemhook-%@.dylib", jbrootPath(@"/basebin/.fakelib"), bootInfo_getObject(@"JBRAND")];
-							unsandbox("/usr/lib", systemhookFilePath.fileSystemRepresentation);
-
 						}
 						else {
 							result = JBD_ERR_PRIMITIVE_NOT_INITIALIZED;
@@ -506,13 +580,20 @@ void jailbreakd_received_message(mach_port_t machPort, bool systemwide)
 							bool rebootWhenDone = xpc_dictionary_get_bool(message, "rebootWhenDone");
 
 							if (basebinPath) {
-								result = basebinUpdateFromTar([NSString stringWithUTF8String:basebinPath], rebootWhenDone);
+								result = basebinUpdateFromTar([NSString stringWithUTF8String:basebinPath], false);
 							}
 							else if (tipaPath) {
-								result = jbUpdateFromTIPA([NSString stringWithUTF8String:tipaPath], rebootWhenDone);
+								result = jbUpdateFromTIPA([NSString stringWithUTF8String:tipaPath], false);
 							}
 							else {
 								result = 101;
+							}
+
+							if (result==0) {
+								process_xpcproxy();
+								if(rebootWhenDone) {
+									safeRebootUserspace();
+								}
 							}
 						}
 						else {
@@ -527,6 +608,7 @@ void jailbreakd_received_message(mach_port_t machPort, bool systemwide)
 						int64_t result = 0;
 						if (gPPLRWStatus == kPPLRWStatusInitialized && gKCallStatus == kKcallStatusFinalized) {
 							rebuildDynamicTrustCache();
+							process_xpcproxy();
 						}
 						else {
 							result = JBD_ERR_PRIMITIVE_NOT_INITIALIZED;
@@ -610,7 +692,7 @@ void jailbreakd_received_message(mach_port_t machPort, bool systemwide)
 							}
 							setTweaksEnabled(false);
 							bootInfo_setObject(@"jbdShowUserspacePanicMessage", @1);
-							reboot3(RB2_USERREBOOT);
+							safeRebootUserspace();
 						}
 						xpc_dictionary_set_int64(reply, "result", result);
 					}
@@ -659,42 +741,6 @@ int main(int argc, char* argv[])
 		gTCPages = [NSMutableArray new];
 		gTCUnusedAllocations = [NSMutableArray new];
 		gTCAccessQueue = dispatch_queue_create("com.opa334.jailbreakd.tcAccessQueue", DISPATCH_QUEUE_SERIAL);
-		
-		gSpawnExecPatchArray = [[NSMutableDictionary alloc] init];
-		gSpawnExecPatchQueue = dispatch_queue_create("spawnExecPatchQueue", DISPATCH_QUEUE_SERIAL);
-
-		gSpawnExecPatchTimer = dispatch_source_create(DISPATCH_SOURCE_TYPE_TIMER, 0, 0, gSpawnExecPatchQueue);
-
-		dispatch_source_set_timer(gSpawnExecPatchTimer, dispatch_time(DISPATCH_TIME_NOW, 0), 5 * NSEC_PER_MSEC, 0);
-		
-		dispatch_source_set_event_handler(gSpawnExecPatchTimer, ^{
-			for(NSNumber* processId in [gSpawnExecPatchArray copy]) {
-				pid_t pid = [processId intValue];
-				bool should_resume = [gSpawnExecPatchArray[processId] boolValue];
-
-				bool paused=false;
-				if(proc_paused(pid, &paused) != 0) {
-					JBLogDebug("execPatch invalid pid: %d, total=%d", pid, gSpawnExecPatchArray.count);
-					[gSpawnExecPatchArray removeObjectForKey:processId];
-					continue;
-				}
-				else if(paused) {
-					JBLogDebug("execPatch got process: %d, total=%d", pid, gSpawnExecPatchArray.count);
-
-					patch_proc_csflags(pid);
-					if(should_resume) kill(pid, SIGCONT);
-
-					[gSpawnExecPatchArray removeObjectForKey:processId];
-					continue;
-				}
-			}
-			if(gSpawnExecPatchArray.count==0) {
-				dispatch_suspend(gSpawnExecPatchTimer);
-				gSpawnExecPatchTimerSuspend = YES;
-			}
-		});
-		dispatch_activate(gSpawnExecPatchTimer);
-		gSpawnExecPatchTimerSuspend=NO;
 
 		mach_port_t machPort = 0;
 		kern_return_t kr = bootstrap_check_in(bootstrap_port, "com.opa334.jailbreakd", &machPort);
@@ -717,8 +763,6 @@ int main(int argc, char* argv[])
 				err = recoverPACPrimitives();
 				if (err == 0) {
 					tcPagesRecover();
-
-					process_xpcproxy();
 				}
 				else {
 					JBLogError("error recovering PAC primitives: %d", err);
@@ -754,6 +798,9 @@ int main(int argc, char* argv[])
 			
 		});
 
+		//init timer after pac recovered
+		initSpawnExecPatch();
+
 		dispatch_source_t source = dispatch_source_create(DISPATCH_SOURCE_TYPE_MACH_RECV, (uintptr_t)machPort, 0, dispatch_get_main_queue());
 		dispatch_source_set_event_handler(source, ^{
 			mach_port_t lMachPort = (mach_port_t)dispatch_source_get_handle(source);
@@ -769,6 +816,7 @@ int main(int argc, char* argv[])
 		dispatch_resume(sourceSystemWide);
 
 		dispatch_main();
+		JBLogDebug("jbd exit...");
 		return 0;
 	}
 }

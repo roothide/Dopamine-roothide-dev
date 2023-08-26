@@ -45,8 +45,8 @@ struct SettingsView: View {
                         VStack(spacing: 10) {
                             Toggle("Settings_Tweak_Injection", isOn: $tweakInjection)
                                 .onChange(of: tweakInjection) { newValue in
+                                    jailbrokenUpdateTweakInjectionPreference()
                                     if isJailbroken() {
-                                        jailbrokenUpdateTweakInjectionPreference()
                                         tweakInjectionToggledAlertShown = true
                                     }
                                 }

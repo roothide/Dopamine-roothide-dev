@@ -1,6 +1,7 @@
 {
     "files.associations": {
         "dlfcn.h": "c",
-        "filesystem": "c"
+        "filesystem": "c",
+        "random": "c"
     }
 }

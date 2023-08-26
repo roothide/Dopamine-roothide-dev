@@ -24,9 +24,10 @@ int64_t jbdswProcessLibrary(const char *filePath);
 int64_t jbdswDebugMe(void);
 int64_t jbdswInterceptUserspacePanic(const char *messageString);
 
+int64_t jbdswRebootUserspace();
 int64_t jbdswPatchSpawn(int pid, bool resume);
-int64_t jbdswPatchExecAdd(bool resume);
-int64_t jbdswPatchExecDel(void);
+int64_t jbdswPatchExecAdd(const char* execfile, bool resume);
+int64_t jbdswPatchExecDel(const char* execfile);
 
 int resolvePath(const char *file, const char *searchPath, int (^attemptHandler)(char *path));
 int spawn_hook_common(pid_t *restrict pid, const char *restrict path,

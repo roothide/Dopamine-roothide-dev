@@ -3,6 +3,8 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <dispatch/dispatch.h>
+#include <pthread.h>
+
 
 bool debugLogsEnabled = true;
 bool errorLogsEnabled = true;
@@ -43,7 +45,7 @@ void JBDLogV(const char* prefix, const char *format, va_list va)
 		time_t t = time(NULL);
 		//struct tm *tm = localtime(&t);
 		char timestamp[64];
-		sprintf(&timestamp[0], "%lu", t);
+		sprintf(&timestamp[0], "%lu-%d", t, getpid());
 
 		logFilePath = malloc(strlen(LOGGING_PATH) + strlen(processName) + strlen(timestamp) + 6);
 		strcpy(logFilePath, LOGGING_PATH);
@@ -60,7 +62,9 @@ void JBDLogV(const char* prefix, const char *format, va_list va)
 		char stime[32];
 		ltime = time(NULL);
 
-		fprintf(logFile, "[%lu] [%s] ", ltime, prefix);
+		__uint64_t tid=0;
+		pthread_threadid_np(0, &tid);
+		fprintf(logFile, "[%lu] [%lld] [%s] ", ltime, tid, prefix);
 		vfprintf(logFile, format, va);
 		fprintf(logFile, "\n");
 

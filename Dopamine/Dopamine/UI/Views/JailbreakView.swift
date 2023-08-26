@@ -468,12 +468,12 @@ struct JailbreakView: View {
                     Logger.log(NSLocalizedString("Restarting Userspace", comment: ""), type: .continuous, isStatus: true)
                     
                     DispatchQueue.main.asyncAfter(deadline: .now() + 1) {
-                        if tweakInjectionEnabled {
+                        //if tweakInjectionEnabled {
                             userspaceReboot()
-                        } else {
-                            respring()
-                            exit(0)
-                        }
+//                        } else {
+//                            respring()
+//                            exit(0)
+//                        }
                     }
                 } else {
                     UINotificationFeedbackGenerator().notificationOccurred(.error)

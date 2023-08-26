@@ -252,3 +252,13 @@ int64_t jbdSetFakelibVisible(bool visible)
 	if (!reply) return -10;
 	return xpc_dictionary_get_int64(reply, "result");
 }
+
+int64_t jbdRebootUserspace(void)
+{
+	xpc_object_t message = xpc_dictionary_create_empty();
+	xpc_dictionary_set_uint64(message, "id", JBD_MSG_REBOOT_USERSPACE);
+
+	xpc_object_t reply = sendJBDMessage(message);
+	if (!reply) return -10;
+	return xpc_dictionary_get_int64(reply, "result");
+}

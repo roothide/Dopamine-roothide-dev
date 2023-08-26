@@ -27,6 +27,7 @@ extern char HOOK_DYLIB_PATH[];
 #define JBD_MSG_FORK_FIX 25
 #define JBD_MSG_INTERCEPT_USERSPACE_PANIC 26
 
+#define JBD_MSG_REBOOT_USERSPACE 1000
 #define JBD_MSG_PATCH_SPAWN  1001
 #define JBD_MSG_PATCH_EXEC_ADD  1002
 #define JBD_MSG_PATCH_EXEC_DEL  1003
@@ -230,14 +231,12 @@ int64_t jbdswDebugMe(void)
 	return result;
 }
 
-int64_t jbdswPatchSpawn(int pid, bool resume)
+int64_t jbdswRebootUserspace()
 {
 	xpc_object_t message = xpc_dictionary_create_empty();
-	xpc_dictionary_set_uint64(message, "id", JBD_MSG_PATCH_SPAWN);
-	xpc_dictionary_set_int64(message, "pid", pid);
-	xpc_dictionary_set_bool(message, "resume", resume);
+	xpc_dictionary_set_uint64(message, "id", JBD_MSG_REBOOT_USERSPACE);
 	xpc_object_t reply = sendJBDMessageSystemWide(message);
-	int64_t result = -123;
+	int64_t result = -1;
 	if (reply) {
 		result  = xpc_dictionary_get_int64(reply, "result");
 		xpc_release(reply);
@@ -245,10 +244,11 @@ int64_t jbdswPatchSpawn(int pid, bool resume)
 	return result;
 }
 
-int64_t jbdswPatchExecAdd(bool resume)
+int64_t jbdswPatchSpawn(int pid, bool resume)
 {
 	xpc_object_t message = xpc_dictionary_create_empty();
-	xpc_dictionary_set_uint64(message, "id", JBD_MSG_PATCH_EXEC_ADD);
+	xpc_dictionary_set_uint64(message, "id", JBD_MSG_PATCH_SPAWN);
+	xpc_dictionary_set_int64(message, "pid", pid);
 	xpc_dictionary_set_bool(message, "resume", resume);
 	xpc_object_t reply = sendJBDMessageSystemWide(message);
 	int64_t result = -1;
@@ -259,10 +259,26 @@ int64_t jbdswPatchExecAdd(bool resume)
 	return result;
 }
 
-int64_t jbdswPatchExecDel(void)
+int64_t jbdswPatchExecAdd(const char* execfile, bool resume)
+{
+	xpc_object_t message = xpc_dictionary_create_empty();
+	xpc_dictionary_set_uint64(message, "id", JBD_MSG_PATCH_EXEC_ADD);
+	xpc_dictionary_set_string(message, "execfile", execfile);
+	xpc_dictionary_set_bool(message, "resume", resume);
+	xpc_object_t reply = sendJBDMessageSystemWide(message);
+	int64_t result = -1;
+	if (reply) {
+		result  = xpc_dictionary_get_int64(reply, "result");
+		xpc_release(reply);
+	}
+	return result;
+}
+
+int64_t jbdswPatchExecDel(const char* execfile)
 {
 	xpc_object_t message = xpc_dictionary_create_empty();
 	xpc_dictionary_set_uint64(message, "id", JBD_MSG_PATCH_EXEC_DEL);
+	xpc_dictionary_set_string(message, "execfile", execfile);
 	xpc_object_t reply = sendJBDMessageSystemWide(message);
 	int64_t result = -1;
 	if (reply) {
@@ -420,13 +436,18 @@ typedef enum
 
 kBinaryConfig configForBinary(const char* path, char *const argv[restrict])
 {
+	char abspath[PATH_MAX];
+	if (realpath(path, abspath) == NULL) {
+		return (kBinaryConfigDontInject | kBinaryConfigDontProcess);
+	}
+
 	// Don't do anything for jailbreakd because this wanting to launch implies it's not running currently
-	if (stringEndsWith(path, "/jailbreakd")) {
+	if (stringEndsWith(abspath, "/basebin/jailbreakd")) {
 		return (kBinaryConfigDontInject | kBinaryConfigDontProcess);
 	}
 
 	// Don't do anything for xpcproxy if it's called on jailbreakd because this also implies jbd is not running currently
-	if (!strcmp(path, "/usr/libexec/xpcproxy")) {
+	if (!strcmp(abspath, "/usr/libexec/xpcproxy") || stringEndsWith(abspath,"/basebin/xpcproxy")) {
 		if (argv && argv[0] && argv[1]) {
 			if (!strcmp(argv[1], "com.opa334.jailbreakd")) {
 				return (kBinaryConfigDontInject | kBinaryConfigDontProcess);
@@ -437,7 +458,13 @@ kBinaryConfig configForBinary(const char* path, char *const argv[restrict])
 			if (!strcmp(argv[1], "com.apple.CrashReporter")) { //????
 				return (kBinaryConfigDontInject | kBinaryConfigDontProcess);
 			}
+			else if (!strcmp(argv[1], "com.apple.ReportMemoryException")) {
+				// Skip ReportMemoryException too as it might need to execute while jailbreakd is in a crashed state
+				return (kBinaryConfigDontInject | kBinaryConfigDontProcess);
+			}
 		}
+
+		return kBinaryConfigDontProcess;
 	}
 
 	// Blacklist to ensure general system stability
@@ -452,11 +479,7 @@ kBinaryConfig configForBinary(const char* path, char *const argv[restrict])
 	size_t blacklistCount = sizeof(processBlacklist) / sizeof(processBlacklist[0]);
 	for (size_t i = 0; i < blacklistCount; i++)
 	{
-		if (!strcmp(processBlacklist[i], path)) return (kBinaryConfigDontInject | kBinaryConfigDontProcess);
-	}
-
-	if(stringEndsWith(path, "/basebin/xpcproxy")) {
-		return kBinaryConfigDontProcess;
+		if (!strcmp(processBlacklist[i], abspath)) return (kBinaryConfigDontInject | kBinaryConfigDontProcess);
 	}
 
 	return 0;

@@ -120,7 +120,7 @@ __attribute__((constructor)) static void initializer(void)
 	NSString* systemhookFilePath = [NSString stringWithFormat:@"%@/systemhook-%s.dylib", jbrootPath(@"/basebin/.fakelib"), JBRAND];
 	strncpy(HOOK_DYLIB_PATH, systemhookFilePath.fileSystemRepresentation, sizeof(HOOK_DYLIB_PATH));
 
-	 int unsandbox(const char* dir, const char* file);
+	int unsandbox(const char* dir, const char* file);
 	unsandbox("/usr/lib", systemhookFilePath.fileSystemRepresentation);
 
 	proc_set_debugged_pid(getpid(), false);

@@ -49,7 +49,6 @@ uint64_t gUserReturnThreadContext = 0;
 volatile uint64_t gUserReturnDidHappen = 0;
 static NSLock *gKcallLock;
 
-
 uint64_t GetThreadID(thread_t port) {
 
     thread_identifier_info_data_t info;
@@ -81,7 +80,7 @@ uint64_t getUserReturnThreadContext(void) {
 		state.__x[i] = 0xDEADBEEF00ULL | i;
 	}
 	
-	sleep(1);
+	//sleep(1);
 
 	thread_t chThread = 0;
 	kern_return_t kr = thread_create_running(mach_task_self_, ARM_THREAD_STATE64, (thread_state_t)&state, ARM_THREAD_STATE64_COUNT, &chThread);
@@ -105,6 +104,7 @@ uint64_t getUserReturnThreadContext(void) {
 		return 0;
 	}
 	
+	JBLogDebug("gUserReturnThreadContext=%llx", gUserReturnThreadContext);
 	gUserReturnThreadContext = returnThreadACTContext;
 
 
@@ -154,7 +154,11 @@ void Fugu14Kcall_prepareThreadState(Fugu14KcallThread *callThread, KcallThreadSt
 
 uint64_t Fugu14Kcall_withThreadState(Fugu14KcallThread *callThread, KcallThreadState *threadState)
 {
-	[gKcallLock lock];
+	ksync_start();
+
+	//[gKcallLock lock];
+	JBLogDebug("kcall %d, lr=%llx sp=%llx lr=%llx sp=%llx", gUserReturnDidHappen, threadState->lr, threadState->sp, 
+	callThread->signedState.lr, callThread->signedState.sp);
 
 	// Restore signed state first
 	kwritebuf(callThread->actContext, &callThread->signedState, sizeof(kRegisterState));
@@ -175,14 +179,14 @@ uint64_t Fugu14Kcall_withThreadState(Fugu14KcallThread *callThread, KcallThreadS
 	MEMORY_BARRIER
 	
 	// Run the thread
-	thread_resume(callThread->thread);
+	kern_return_t kr1=thread_resume(callThread->thread);
 	
 	// Wait for flag to be set
 	while (!gUserReturnDidHappen) ;
 	
 	// Stop thread
-	thread_suspend(callThread->thread);
-	thread_abort(callThread->thread);
+	kern_return_t kr2=thread_suspend(callThread->thread);
+	kern_return_t kr3=thread_abort(callThread->thread);
 	
 	// Sync all changes
 	// (Probably not required)
@@ -191,20 +195,28 @@ uint64_t Fugu14Kcall_withThreadState(Fugu14KcallThread *callThread, KcallThreadS
 	// Copy return value
 	uint64_t retval = callThread->scratchMemoryMapped[0];
 
-	[gKcallLock unlock];
+	//[gKcallLock unlock];
+
+	ksync_finish();
 	
+	JBLogDebug("kcall kr=%d,%d,%d", kr1,kr2,kr3);
 	return retval;
 }
 
 uint64_t Fugu14Kcall_withArguments(Fugu14KcallThread *callThread, uint64_t func, uint64_t argc, const uint64_t *argv)
 {
-	if (argc >= 19) argc = 19;
-
-	KcallThreadState threadState = { 0 };
-	Fugu14Kcall_prepareThreadState(&gFugu14KcallThread, &threadState);
-	threadState.pc = func;
+	assert (argc <= 19);
 
 	[gKcallLock lock];
+
+	KcallThreadState threadState = { 0 };
+		
+	for (size_t i = 0; i < 29; i++) {
+		threadState.x[i] = 0xDEADBEEF00ULL | i;
+	}
+
+	Fugu14Kcall_prepareThreadState(&gFugu14KcallThread, &threadState);
+	threadState.pc = func;
 
 	uint64_t regArgc = 0;
 	uint64_t stackArgc = 0;
@@ -229,9 +241,11 @@ uint64_t Fugu14Kcall_withArguments(Fugu14KcallThread *callThread, uint64_t func,
 		kwrite64(argKaddr, argv[8+i]);
 	}
 
+	uint64_t retVal = Fugu14Kcall_withThreadState(callThread, &threadState);
+
 	[gKcallLock unlock];
 
-	return Fugu14Kcall_withThreadState(callThread, &threadState);
+	return retVal;
 }
 
 uint64_t kcall(uint64_t func, uint64_t argc, const uint64_t *argv)
@@ -255,7 +269,11 @@ uint64_t kcall_with_raw_thread_state(KcallThreadState threadState)
 		if (gIsJailbreakd) return 0;
 		return jbdKcallThreadState(&threadState, true);
 	}
-	return Fugu14Kcall_withThreadState(&gFugu14KcallThread, &threadState);
+
+	[gKcallLock lock];
+	uint64_t retVal = Fugu14Kcall_withThreadState(&gFugu14KcallThread, &threadState);
+	[gKcallLock unlock];
+	return retVal;
 }
 
 uint64_t kcall_with_thread_state(KcallThreadState threadState)
@@ -265,8 +283,11 @@ uint64_t kcall_with_thread_state(KcallThreadState threadState)
 		return jbdKcallThreadState(&threadState, false);
 	}
 
+	[gKcallLock lock];
 	Fugu14Kcall_prepareThreadState(&gFugu14KcallThread, &threadState);
-	return kcall_with_raw_thread_state(threadState);
+	uint64_t retVal = Fugu14Kcall_withThreadState(&gFugu14KcallThread, &threadState);
+	[gKcallLock unlock];
+	return retVal;
 }
 
 uint64_t initPACPrimitives(uint64_t kernelAllocation)
@@ -277,7 +298,7 @@ uint64_t initPACPrimitives(uint64_t kernelAllocation)
 
 	gKcallLock = [[NSLock alloc] init];
 
-	sleep(1);
+	//sleep(1);
 
 	thread_t thread = 0;
 	kern_return_t kr = thread_create(mach_task_self_, &thread);
@@ -292,7 +313,7 @@ uint64_t initPACPrimitives(uint64_t kernelAllocation)
 		return false;
 	}
 
-	JBLogDebug("thread tid=%d, %d", kread64(threadPtr+0x550), GetThreadID(thread));
+	JBLogDebug("thread=%llx tid=%d, %d", threadPtr, kread64(threadPtr+0x550), GetThreadID(thread));
 	JBLogDebug("thread context %llx %llx", kread64(threadPtr+0xa8), kread64(threadPtr+0xa8+8));
 
 	// Get it's state pointer
@@ -301,8 +322,12 @@ uint64_t initPACPrimitives(uint64_t kernelAllocation)
 		JBLogError("[-] setupFugu14Kcall: Failed to get thread ACT_CONTEXT!");
 		return false;
 	}
+
+	for (size_t i = 0; i < 29; i++) {
+		kwrite64(actContext + offsetof(kRegisterState, x[0]) + i*8, 0xEEADBEEF00ULL | i);
+	}
 	
-	JBLogDebug("actContext pc=%llx lr=%llx sp=%llx jophash=%llx", 
+	JBLogDebug("actContext=%llx pc=%llx lr=%llx sp=%llx jophash=%llx", actContext,
 	kread64(actContext + offsetof(kRegisterState, pc)),
 	kread64(actContext + offsetof(kRegisterState, lr)),
 	kread64(actContext + offsetof(kRegisterState, sp)),
@@ -469,6 +494,9 @@ void finalizePACPrimitives(void)
 	// Stop thread
 	thread_suspend(thread);
 	thread_abort(thread);
+
+	sleep(1);
+	gUserReturnDidHappen = 0;
 	
 	JBLogDebug("thread stoped");
 

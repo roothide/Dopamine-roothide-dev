@@ -86,16 +86,25 @@ int unrestrict(pid_t pid, int (*callback)(pid_t pid), bool should_resume)
 
 int patch_proc_csflags(int pid)
 {
+	int ret = 0;
+
+	ksync_start();
+
 	bool proc_needs_release = false;
 	uint64_t proc = proc_for_pid(pid, &proc_needs_release);
-	if(!proc) return -1;
+	if(proc) {
+		uint32_t csflags = proc_get_csflags(proc);
+		uint32_t new_csflags = csflags | 4; //CS_GET_TASK_ALLOW
+		proc_set_csflags(proc, new_csflags);
 
-	uint32_t csflags = proc_get_csflags(proc);
-	uint32_t new_csflags = csflags | 4; //CS_GET_TASK_ALLOW
-	proc_set_csflags(proc, new_csflags);
+		if (proc_needs_release) proc_rele(proc);
+	} else {
+		ret = -1;
+	}
 
-	if (proc_needs_release) proc_rele(proc);
-	return 0;
+	ksync_finish();
+	
+	return ret;
 }
 
 // int patch_proc_dyld(pid_t pid, bool resume)

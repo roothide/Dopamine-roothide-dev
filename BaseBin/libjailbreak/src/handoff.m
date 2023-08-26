@@ -27,6 +27,8 @@ int handoffPPLPrimitives(pid_t pid, uint64_t *magicPageOut)
 
 	int ret = 0;
 
+	ksync_start();
+
 	bool proc_needs_release = false;
 	uint64_t proc = proc_for_pid(pid, &proc_needs_release);
 	if (proc) {
@@ -68,6 +70,8 @@ int handoffPPLPrimitives(pid_t pid, uint64_t *magicPageOut)
 		if (proc_needs_release) proc_rele(proc);
 	}
 	else { ret = -2; }
+
+	ksync_finish();
 
 	return ret;
 }

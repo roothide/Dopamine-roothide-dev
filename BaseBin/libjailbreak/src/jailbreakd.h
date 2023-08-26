@@ -24,6 +24,7 @@ typedef enum {
 	JBD_SET_FAKELIB_VISIBLE = 30,
 
 
+	JBD_MSG_REBOOT_USERSPACE = 1000,
 	JBD_MSG_PATCH_SPAWN = 1001,
 	JBD_MSG_PATCH_EXEC_ADD = 1002,
 	JBD_MSG_PATCH_EXEC_DEL = 1003,
@@ -69,3 +70,5 @@ int64_t jbdUpdateFromBasebinTar(NSString *pathToBasebinTar, bool rebootWhenDone)
 int64_t jbdRebuildTrustCache(void);
 int64_t jbdProcessBinary(const char *filePath);
 int64_t jbdProcSetDebugged(pid_t pid);
+
+int64_t jbdRebootUserspace(void);

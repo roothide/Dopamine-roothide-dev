@@ -94,6 +94,7 @@ int posix_spawn_hook(pid_t *restrict pidp, const char *restrict path,
 			posix_spawnattr_getflags(attrp, &flags);
 			posix_spawnattr_setflags(attrp, flags|POSIX_SPAWN_START_SUSPENDED); //!
 			
+			ksync_lock();
 			// Say goodbye to this process
 			return posix_spawn_orig(pidp, path, file_actions, attrp, argv, envp);
 		}
@@ -137,8 +138,8 @@ int posix_spawn_hook(pid_t *restrict pidp, const char *restrict path,
 
 	if (strcmp(path, "/usr/libexec/xpcproxy")==0 && argv[0] && argv[1])
 	{
-		if(
-			strstr(argv[1], "jailbreakd")==NULL
+		if(strcmp(argv[1], "com.opa334.jailbreakd")!=0
+		 && strcmp(argv[1], "com.opa334.trustcache_rebuild")!=0 
 
 		&& strstr(argv[1], ".apple.")==NULL
 		&& strstr(argv[1], "/Applications/")!=argv[1]
@@ -151,6 +152,7 @@ int posix_spawn_hook(pid_t *restrict pidp, const char *restrict path,
 		&& strstr(argv[1], "/private/preboot/")!=argv[1]
 		&& strstr(argv[1], "/var/containers/Bundle/Application/")!=argv[1]
 		&& strstr(argv[1], "/private/var/containers/Bundle/Application/")!=argv[1]
+
 		)
  			if(access(jbrootPath(@"/basebin/xpcproxy").fileSystemRepresentation, F_OK)==0) {
  				JBLogDebug("use patched xpcproxy: %s", argv[1]);
@@ -182,9 +184,16 @@ int posix_spawn_hook(pid_t *restrict pidp, const char *restrict path,
 		posix_spawnattr_setflags(attrp, flags|POSIX_SPAWN_START_SUSPENDED);
 	}
 
+	JBLogDebug("launchd spawn path=%s flags=%x", path, flags);
+	if(argv) for(int i=0; argv[i]; i++) JBLogDebug("\targs[%d] = %s", i, argv[i]);
+	if(envp) for(int i=0; envp[i]; i++) JBLogDebug("\tenvp[%d] = %s", i, envp[i]);
+
 	int pid=0;
-	int ret = spawn_hook_common(&pid, path, file_actions, attrp, argv, envp, posix_spawn_orig);
-	if(pidp) *pidp=pid;
+	if(!pidp) pidp = &pid; //atomic with syscall
+	int ret = spawn_hook_common(pidp, path, file_actions, attrp, argv, envp, posix_spawn_orig);
+	pid = *pidp;
+
+	JBLogDebug("spawn ret=%d pid=%d", ret, pid);
 
 	if(suspend && ret==0 && pid>0)
 	{
@@ -195,9 +204,6 @@ int posix_spawn_hook(pid_t *restrict pidp, const char *restrict path,
 		if(should_resume) kill(pid, SIGCONT);
 	}
 
-	JBLogDebug("launchd spawn ret=%d pid=%d path=%s flags=%x", ret, pid, path, flags);
-	if(argv) for(int i=0; argv[i]; i++) JBLogDebug("\targs[%d] = %s", i, argv[i]);
-	if(envp) for(int i=0; envp[i]; i++) JBLogDebug("\tenvp[%d] = %s", i, envp[i]);
 
     // NSArray *csss = [NSThread callStackSymbols];
     // JBLogDebug("callstack=\n%s\n", [NSString stringWithFormat:@"%@", csss].UTF8String);
@@ -205,7 +211,108 @@ int posix_spawn_hook(pid_t *restrict pidp, const char *restrict path,
 	return ret;
 }
 
+
+#include <sys/sysctl.h>
+void logproclist()
+{
+	JBLogDebug("proclist start");
+	static int maxArgumentSize = 0;
+	if (maxArgumentSize == 0) {
+		size_t size = sizeof(maxArgumentSize);
+		if (sysctl((int[]){ CTL_KERN, KERN_ARGMAX }, 2, &maxArgumentSize, &size, NULL, 0) == -1) {
+			perror("sysctl argument size");
+			maxArgumentSize = 4096; // Default
+		}
+	}
+	int mib[3] = { CTL_KERN, KERN_PROC, KERN_PROC_ALL};
+	struct kinfo_proc *info;
+	size_t length;
+	int count;
+	
+	if (sysctl(mib, 3, NULL, &length, NULL, 0) < 0)
+		return;
+	if (!(info = malloc(length)))
+		return;
+	if (sysctl(mib, 3, info, &length, NULL, 0) < 0) {
+		free(info);
+		return;
+	}
+	count = length / sizeof(struct kinfo_proc);
+	for (int i = 0; i < count; i++) {
+		pid_t pid = info[i].kp_proc.p_pid;
+		if (pid == 0) {
+			continue;
+		}
+		size_t size = maxArgumentSize;
+		char* buffer = (char *)malloc(length);
+		if (sysctl((int[]){ CTL_KERN, KERN_PROCARGS2, pid }, 3, buffer, &size, NULL, 0) == 0) {
+			char *executablePath = buffer + sizeof(int);
+			JBLogDebug("pid=%d path=%s", pid, executablePath);
+		}
+		free(buffer);
+	}
+	free(info);
+
+	JBLogDebug("proclist end");
+}
+
+
+#pragma GCC diagnostic ignored "-Wdeprecated-declarations"
+
+#include <sys/syscall.h>
+#define RB_QUICK        0x400   /* quick and ungraceful reboot with file system caches flushed*/
+#define RB_PANIC        0x800   /* panic the kernel */
+
+int	 __reboot(int how, int unk);
+int	 (*reboot_orig)(int how, int unk);
+int	 reboot_hook(int how, int unk)
+{
+	logproclist();
+
+	for(int i=0; i<5; i++) {
+		JBLogDebug("reboot...%d", how);
+		sync();
+		sleep(1);
+	}
+
+    NSArray *csss = [NSThread callStackSymbols];
+    JBLogDebug("callstack=\n%s\n", [NSString stringWithFormat:@"%@", csss].UTF8String);
+
+	sync();
+	sleep(1);
+
+	if(how==0 && unk==0) {
+		//make a panic log
+		return syscall(SYS_reboot, RB_PANIC|RB_QUICK, "launchd force reboot");
+	}
+
+	return reboot_orig(how, unk);
+}
+void (*launchdlogfunc_orig)(uint64_t a1, uint64_t a2, char *format, va_list aptr, uint64_t a5);
+void launchdlogfunc_hook(uint64_t a1, uint64_t a2, char *format, va_list aptr, uint64_t a5)
+{
+    char* buffer = NULL;
+    vasprintf(&buffer, format, aptr);
+
+	JBLogDebug("launchdlog: [%s] %s", a1, buffer);
+
+	if(strstr(buffer, "exceeded sigkill timeout")) {
+
+		logproclist();
+		sync();
+	}
+
+    free(buffer);
+
+	return launchdlogfunc_orig(a1,a2,format,aptr,a5);
+}
+extern int gLaunchdImageIndex;
 void initSpawnHooks(void)
 {
 	MSHookFunction(&posix_spawn, (void*)posix_spawn_hook, (void**)&posix_spawn_orig);
+	MSHookFunction(&__reboot, (void*)reboot_hook, (void**)&reboot_orig);
+
+	// uint64_t f1 = (uint64_t) _dyld_get_image_header(gLaunchdImageIndex) + 0x0361A8;
+	// MSHookFunction((void*)f1, (void*)launchdlogfunc_hook, (void**)&launchdlogfunc_orig);
+
 }

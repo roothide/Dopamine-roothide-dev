@@ -19,6 +19,8 @@ int64_t apply_fork_fixup(pid_t parentPid, pid_t childPid)
 {
 	int64_t retval = 3;
 
+	ksync_start();
+
 	bool childProcNeedsRelease = false;
 	uint64_t childProc = proc_for_pid(childPid, &childProcNeedsRelease);
 
@@ -82,6 +84,8 @@ int64_t apply_fork_fixup(pid_t parentPid, pid_t childPid)
 	}
 	if (childProcNeedsRelease) proc_rele(childProc);
 	if (parentProcNeedsRelease) proc_rele(parentProc);
+
+	ksync_finish();
 
 	return retval;
 }

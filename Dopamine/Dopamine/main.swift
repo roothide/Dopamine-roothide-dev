@@ -35,6 +35,8 @@ if isJailbroken() {
     let safeModePath = rootifyPath(path: "basebin/.safe_mode")
     let safeModeState = FileManager.default.fileExists(atPath: safeModePath!)
     dpDefaults.set(!safeModeState, forKey: "tweakInjectionEnabled")
+    dpDefaults.synchronize()
+    sync()
 }
 
 Fugu15App.main()

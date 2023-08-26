@@ -40,7 +40,8 @@ int main(int argc, char* argv[])
 	else if (!strcmp(cmd, "rebuild_trustcache")) {
 		jbdRebuildTrustCache();
 	} else if (!strcmp(cmd, "reboot_userspace")) {
-		return reboot3(RB2_USERREBOOT);
+		//return reboot3(RB2_USERREBOOT);
+		return jbdRebootUserspace();
 	} else if (!strcmp(cmd, "update")) {
 		if (argc < 4) {
 			print_usage();
@@ -56,7 +57,8 @@ int main(int argc, char* argv[])
 		if (result == 0) {
 			printf("Update applied, userspace rebooting to finalize it...\n");
 			sleep(2);
-			return reboot3(RB2_USERREBOOT);
+			//return reboot3(RB2_USERREBOOT);
+			return jbdRebootUserspace();
 		}
 		else {
 			printf("Update failed with error code %lld\n", result);
