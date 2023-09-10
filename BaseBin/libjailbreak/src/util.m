@@ -909,7 +909,8 @@ int proc_set_debugged(uint64_t proc_ptr, bool fully_debugged)
 		// When coming from ptrace, we want to fully emulate cs_allow_invalid though
 
 		uint32_t flags = proc_get_csflags(proc_ptr) & ~(CS_KILL | CS_HARD);
-		if (flags & CS_VALID) {
+		if (flags & CS_VALID) 
+		{
 			flags |= CS_DEBUGGED;
 		}
 		proc_set_csflags(proc_ptr, flags);
@@ -1051,4 +1052,20 @@ void ksync_start() {
 
 void ksync_finish() {
     pthread_rwlock_unlock(&gksynclock);
+}
+
+int reboot3(uint64_t flags, ...);
+#define RB2_USERREBOOT (0x2000000000000000llu)
+void safeRebootUserspace()
+{
+	ksync_lock(); //wait all atomic kernel operation then lock 
+
+	sync();
+
+	reboot3(RB2_USERREBOOT);
+
+	while(true) {
+		JBLogDebug("wait for userspace reboot...");
+		sync();
+	}
 }

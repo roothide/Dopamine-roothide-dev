@@ -425,8 +425,8 @@ __attribute__((constructor)) static void initializer(void)
 	unsetenv("JB_SANDBOX_EXTENSIONS");
 	JB_RootPath = strdup(getenv("JB_ROOT_PATH"));
 
-	JBRAND = strdup(getenv("JBRAND"));// unsetenv("JBRAND");
-	JBROOT = strdup(getenv("JBROOT"));// unsetenv("JBROOT");
+	JBRAND = strdup(getenv("JBRAND"));
+	JBROOT = strdup(getenv("JBROOT"));
 
 	struct dl_info di={0};
     dladdr((void*)initializer, &di);
@@ -446,6 +446,9 @@ __attribute__((constructor)) static void initializer(void)
 			jbdswFixSetuid();
 		}
 	}
+
+	dlopen_hook(JB_ROOT_PATH("/usr/lib/roothideinit.dylib"), RTLD_NOW);
+	dlopen_hook(JB_ROOT_PATH("/usr/lib/roothidepatch.dylib"), RTLD_NOW); //need jit
 
 	if (gExecutablePath) {
 		if (strcmp(gExecutablePath, "/System/Library/CoreServices/SpringBoard.app/SpringBoard") == 0) {
@@ -476,12 +479,16 @@ __attribute__((constructor)) static void initializer(void)
 			{
 				void *tweakLoaderHandle = dlopen_hook(tweakLoaderPath, RTLD_NOW);
 				if (tweakLoaderHandle != NULL) {
-					dlclose(tweakLoaderHandle); //will hide TweakLoader module
+					//dlclose(tweakLoaderHandle); //will hide TweakLoader module
 				}
 			}
 		}
 	}
 	freeExecutablePath();
+	//unset these to prevent from using by third-party
+	unsetenv("JBRAND");
+	unsetenv("JBROOT");
+	unsetenv("JB_ROOT_PATH");
 }
 
 

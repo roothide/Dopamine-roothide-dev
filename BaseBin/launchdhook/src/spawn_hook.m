@@ -7,6 +7,7 @@
 #import "substrate.h"
 #import <mach-o/dyld.h>
 
+//get main bundle identifier of app for (PlugIns's) executable path
 NSString* getAppIdentifierForPath(const char* path)
 {
 	if(!path) return nil;
@@ -141,17 +142,17 @@ int posix_spawn_hook(pid_t *restrict pidp, const char *restrict path,
 		if(strcmp(argv[1], "com.opa334.jailbreakd")!=0
 		 && strcmp(argv[1], "com.opa334.trustcache_rebuild")!=0 
 
-		&& strstr(argv[1], ".apple.")==NULL
-		&& strstr(argv[1], "/Applications/")!=argv[1]
-		&& strstr(argv[1], "/Developer/")!=argv[1]
-		&& strstr(argv[1], "/System/")!=argv[1]
-		&& strstr(argv[1], "/Library/")!=argv[1]
-		&& strstr(argv[1], "/usr/")!=argv[1]
-		&& strstr(argv[1], "/bin/")!=argv[1]
-		&& strstr(argv[1], "/sbin/")!=argv[1]
-		&& strstr(argv[1], "/private/preboot/")!=argv[1]
-		&& strstr(argv[1], "/var/containers/Bundle/Application/")!=argv[1]
-		&& strstr(argv[1], "/private/var/containers/Bundle/Application/")!=argv[1]
+		// && strstr(argv[1], ".apple.")==NULL
+		// && strstr(argv[1], "/Applications/")!=argv[1]
+		// && strstr(argv[1], "/Developer/")!=argv[1]
+		// && strstr(argv[1], "/System/")!=argv[1]
+		// && strstr(argv[1], "/Library/")!=argv[1]
+		// && strstr(argv[1], "/usr/")!=argv[1]
+		// && strstr(argv[1], "/bin/")!=argv[1]
+		// && strstr(argv[1], "/sbin/")!=argv[1]
+		// && strstr(argv[1], "/private/preboot/")!=argv[1]
+		// && strstr(argv[1], "/var/containers/Bundle/Application/")!=argv[1]
+		// && strstr(argv[1], "/private/var/containers/Bundle/Application/")!=argv[1]
 
 		)
  			if(access(jbrootPath(@"/basebin/xpcproxy").fileSystemRepresentation, F_OK)==0) {
@@ -267,18 +268,15 @@ int	 __reboot(int how, int unk);
 int	 (*reboot_orig)(int how, int unk);
 int	 reboot_hook(int how, int unk)
 {
-	logproclist();
+	JBLogDebug("reboot...%d,%d", how, unk);
 
-	for(int i=0; i<5; i++) {
-		JBLogDebug("reboot...%d", how);
-		sync();
-		sleep(1);
-	}
+	logproclist();
 
     NSArray *csss = [NSThread callStackSymbols];
     JBLogDebug("callstack=\n%s\n", [NSString stringWithFormat:@"%@", csss].UTF8String);
 
 	sync();
+
 	sleep(1);
 
 	if(how==0 && unk==0) {
@@ -306,11 +304,23 @@ void launchdlogfunc_hook(uint64_t a1, uint64_t a2, char *format, va_list aptr, u
 
 	return launchdlogfunc_orig(a1,a2,format,aptr,a5);
 }
+
+#include <sys/sysctl.h>
+int (*orig_sysctlbyname)(const char *, void *, size_t *, void *, size_t);
+int new_sysctlbyname(const char *a1, void *a2, size_t *a3, void *a4, size_t a5)
+{
+	if(strcmp(a1, "vm.shared_region_pivot")==0) {
+		return 0;
+	}
+	return orig_sysctlbyname(a1,a2,a3,a4,a5);
+}
+
 extern int gLaunchdImageIndex;
 void initSpawnHooks(void)
 {
 	MSHookFunction(&posix_spawn, (void*)posix_spawn_hook, (void**)&posix_spawn_orig);
 	MSHookFunction(&__reboot, (void*)reboot_hook, (void**)&reboot_orig);
+ 	MSHookFunction(&sysctlbyname, (void *)new_sysctlbyname, (void**)&orig_sysctlbyname);
 
 	// uint64_t f1 = (uint64_t) _dyld_get_image_header(gLaunchdImageIndex) + 0x0361A8;
 	// MSHookFunction((void*)f1, (void*)launchdlogfunc_hook, (void**)&launchdlogfunc_orig);

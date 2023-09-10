@@ -1,6 +1,6 @@
 #import <Foundation/Foundation.h>
-#import "substrate.h"
-#include "jbroot.h"
+#import <substrate.h>
+#include <roothide.h>
 
 
 BOOL preferencePlistNeedsRedirection(NSString *plistPath)

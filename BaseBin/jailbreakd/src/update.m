@@ -179,8 +179,7 @@ int basebinUpdateFromTar(NSString *basebinPath, bool rebootWhenDone)
 	kfree(existingTCKaddr, existingTCSize);
 
 	if (rebootWhenDone) {
-		ksync_lock();
-		return reboot3(RB2_USERREBOOT);
+		safeRebootUserspace();
 	}
 
 	return 0;

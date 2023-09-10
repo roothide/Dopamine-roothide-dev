@@ -2,6 +2,7 @@
     "files.associations": {
         "dlfcn.h": "c",
         "filesystem": "c",
-        "random": "c"
+        "random": "c",
+        "syslog.h": "c"
     }
 }

@@ -136,3 +136,4 @@ void run_unsandboxed(void (^block)(void));
 void ksync_lock();
 void ksync_start();
 void ksync_finish();
+void safeRebootUserspace();

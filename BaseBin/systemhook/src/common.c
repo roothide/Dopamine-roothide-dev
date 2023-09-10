@@ -617,14 +617,15 @@ int spawn_hook_common(pid_t *restrict pid, const char *restrict path,
 					strcat(newLibraryInsert, ":");
 					strcat(newLibraryInsert, existingLibraryInserts);
 				}
-				envbuf_setenv(&envc, "DYLD_INSERT_LIBRARIES", newLibraryInsert);
+				envbuf_setenv(&envc, "DYLD_INSERT_LIBRARIES", newLibraryInsert, 1);
 			}
 
-			envbuf_setenv(&envc, "JB_SANDBOX_EXTENSIONS", JB_SandboxExtensions);
-			envbuf_setenv(&envc, "JB_ROOT_PATH", JB_RootPath);
+			envbuf_setenv(&envc, "JB_SANDBOX_EXTENSIONS", JB_SandboxExtensions, 1);
+			envbuf_setenv(&envc, "JB_ROOT_PATH", JB_RootPath, 1);
 			
-			envbuf_setenv(&envc, "JBRAND", JBRAND);
-			envbuf_setenv(&envc, "JBROOT", JBROOT);
+			//allow to overwrite for testing
+			envbuf_setenv(&envc, "JBRAND", JBRAND, 0);
+			envbuf_setenv(&envc, "JBROOT", JBROOT, 0);
 		}
 		else {
 			if (systemHookAlreadyInserted && existingLibraryInserts) {
@@ -648,7 +649,7 @@ int spawn_hook_common(pid_t *restrict pid, const char *restrict path,
 							}
 						}
 					});
-					envbuf_setenv(&envc, "DYLD_INSERT_LIBRARIES", newLibraryInsert);
+					envbuf_setenv(&envc, "DYLD_INSERT_LIBRARIES", newLibraryInsert, 1);
 
 					free(newLibraryInsert);
 				}

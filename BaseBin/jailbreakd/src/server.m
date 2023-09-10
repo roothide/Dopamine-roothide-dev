@@ -312,20 +312,6 @@ void initSpawnExecPatch()
 	gSpawnExecPatchTimerSuspend = YES;
 }
 
-void safeRebootUserspace()
-{
-	ksync_lock(); //wait all atomic kernel operation then lock 
-
-	sync();
-
-	reboot3(RB2_USERREBOOT);
-
-	while(true) {
-		JBLogDebug("wait for userspace reboot...");
-		sync();
-	}
-}
-
 void jailbreakd_received_message(mach_port_t machPort, bool systemwide)
 {
 	@autoreleasepool {

@@ -76,6 +76,14 @@ void JBDLogV(const char* prefix, const char *format, va_list va)
 
 void JBLogDebug(const char *format, ...)
 {
+	static bool jblogenable = false;
+	static dispatch_once_t onceToken;
+	dispatch_once (&onceToken, ^{
+		jblogenable = access(LOGGING_PATH "/.jblogenable",F_OK)==0;
+	});
+
+	if(!jblogenable) return;
+
 	if (!debugLogsEnabled) return;
 	va_list va;
 	va_start(va, format);
@@ -85,6 +93,14 @@ void JBLogDebug(const char *format, ...)
 
 void JBLogError(const char *format, ...)
 {
+	static bool jblogenable = false;
+	static dispatch_once_t onceToken;
+	dispatch_once (&onceToken, ^{
+		jblogenable = access(LOGGING_PATH "/.jblogenable",F_OK)==0;
+	});
+
+	if(!jblogenable) return;
+
 	if (!errorLogsEnabled) return;
 	va_list va;
 	va_start(va, format);
