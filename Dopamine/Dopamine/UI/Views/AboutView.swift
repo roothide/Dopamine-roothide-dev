@@ -28,8 +28,8 @@ struct AboutView: View {
         ("ProcursusTeam", "http://github.com/ProcursusTeam"),
         ("kirb", "http://github.com/kirb"),
         ("Amy While", "http://github.com/elihwyma"),
-        ("shadow-", "http://github.com/RootHide"),
-        ("RootHide", "http://github.com/RootHide"),
+        ("roothide", "http://github.com/RootHide"),
+        ("Shadow-", "http://github.com/RootHide"),
     ]
     
     var body: some View {
