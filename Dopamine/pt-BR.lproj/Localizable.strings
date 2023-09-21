@@ -42,7 +42,7 @@
 
 "Credits_Button_Source_Code" = "Código-Fonte";
 
-"Credits_Footer_Dopamine_Version %@\nOS:%@" = "Dopamine versão %@\n%@";
+"Credits_Footer_Dopamine_Version %@\nOS:%@" = "Dopamine(roothide) versão %@\n%@";
 
 "Credits_Header_Special_Thanks" = "Agradecimentos:";
 

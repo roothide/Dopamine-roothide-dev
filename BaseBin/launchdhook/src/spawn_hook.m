@@ -7,26 +7,44 @@
 #import "substrate.h"
 #import <mach-o/dyld.h>
 
-//get main bundle identifier of app for (PlugIns's) executable path
-NSString* getAppIdentifierForPath(const char* path)
+
+#define APP_PATH_PREFIX "/private/var/containers/Bundle/Application/"
+
+NSString* getAppBundlePathForMachO(const char* path)
 {
 	if(!path) return nil;
 	
 	char rp[PATH_MAX];
 	if(!realpath(path, rp)) return nil;
 
-#define APP_PATH_PREFIX "/private/var/containers/Bundle/Application/"
-
 	if(strncmp(rp, APP_PATH_PREFIX, sizeof(APP_PATH_PREFIX)-1) != 0)
 		return nil;
 
-	char* p = strstr(rp,".app/");
+	char* p1 = rp + sizeof(APP_PATH_PREFIX)-1;
+	char* p2 = strchr(p1, '/');
+	if(!p2) return nil;
+
+	//is normal app or jailbroken app/daemon? 
+	if((p2 - p1) != (sizeof("xxxxxxxx-xxxx-xxxx-yxxx-xxxxxxxxxxxx")-1))
+		return nil;
+
+	char* p = strstr(p2,".app/");
 	if(!p) return nil;
 	
 	p[sizeof(".app/")-1] = '\0';
-	strcat(rp, "Info.plist");
 
-	NSDictionary* appInfo = [NSDictionary dictionaryWithContentsOfFile:[NSString stringWithUTF8String:rp]];
+	return [NSString stringWithUTF8String:rp];
+}
+
+//get main bundle identifier of app for (PlugIns's) executable path
+NSString* getAppIdentifierForPath(const char* path)
+{
+	if(!path) return nil;
+
+	NSString* bundlePath = getAppBundlePathForMachO(path);
+	if(!bundlePath) return nil;
+
+	NSDictionary* appInfo = [NSDictionary dictionaryWithContentsOfFile:[NSString stringWithFormat:@"%@/Info.plist",bundlePath]];
 	if(!appInfo) return nil;
 
 	NSString* identifier = appInfo[@"CFBundleIdentifier"];
@@ -136,32 +154,6 @@ int posix_spawn_hook(pid_t *restrict pidp, const char *restrict path,
 		JBLogDebug("roothideBlacklistedApp:%s, %s", appIdentifier.UTF8String, path);
 		return posix_spawn_orig(pidp, path, file_actions, attrp, argv, envp);
 	}
-
-	if (strcmp(path, "/usr/libexec/xpcproxy")==0 && argv[0] && argv[1])
-	{
-		if(strcmp(argv[1], "com.opa334.jailbreakd")!=0
-		 && strcmp(argv[1], "com.opa334.trustcache_rebuild")!=0 
-
-		// && strstr(argv[1], ".apple.")==NULL
-		// && strstr(argv[1], "/Applications/")!=argv[1]
-		// && strstr(argv[1], "/Developer/")!=argv[1]
-		// && strstr(argv[1], "/System/")!=argv[1]
-		// && strstr(argv[1], "/Library/")!=argv[1]
-		// && strstr(argv[1], "/usr/")!=argv[1]
-		// && strstr(argv[1], "/bin/")!=argv[1]
-		// && strstr(argv[1], "/sbin/")!=argv[1]
-		// && strstr(argv[1], "/private/preboot/")!=argv[1]
-		// && strstr(argv[1], "/var/containers/Bundle/Application/")!=argv[1]
-		// && strstr(argv[1], "/private/var/containers/Bundle/Application/")!=argv[1]
-
-		)
- 			if(access(jbrootPath(@"/basebin/xpcproxy").fileSystemRepresentation, F_OK)==0) {
- 				JBLogDebug("use patched xpcproxy: %s", argv[1]);
- 				path = jbrootPath(@"/basebin/xpcproxy").fileSystemRepresentation;
- 			}
-
-	}
-
 
 	posix_spawnattr_t attr;
 	if(!attrp) {

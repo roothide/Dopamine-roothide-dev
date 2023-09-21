@@ -9,6 +9,31 @@
 #import <sandbox.h>
 #import "substrate.h"
 
+#define APP_PATH_PREFIX "/private/var/containers/Bundle/Application/"
+
+BOOL isAppPath(NSString* _path)
+{
+    if(!_path) return NO;
+
+    const char* path = _path.UTF8String;
+    
+    char rp[PATH_MAX];
+    if(!realpath(path, rp)) return NO;
+
+    if(strncmp(rp, APP_PATH_PREFIX, sizeof(APP_PATH_PREFIX)-1) != 0)
+        return NO;
+
+    char* p1 = rp + sizeof(APP_PATH_PREFIX)-1;
+    char* p2 = strchr(p1, '/');
+    if(!p2) return NO;
+
+    //is normal app or jailbroken app/daemon?
+    if((p2 - p1) != (sizeof("xxxxxxxx-xxxx-xxxx-yxxx-xxxxxxxxxxxx")-1))
+        return NO;
+
+    return YES;
+}
+
 // Server routine to make jailbreakd able to get back primitives when it restarts
 void (*xpc_handler_orig)(uint64_t a1, uint64_t a2, xpc_object_t xdict);
 void xpc_handler_hook(uint64_t a1, uint64_t a2, xpc_object_t xdict)
@@ -23,7 +48,7 @@ void xpc_handler_hook(uint64_t a1, uint64_t a2, xpc_object_t xdict)
 				NSString *clientPath = [NSString stringWithUTF8String:realpath(proc_get_path(clientPid).UTF8String, NULL)];
 				NSString *jailbreakdPath = [NSString stringWithUTF8String:realpath(jbrootPath(@"/basebin/jailbreakd").UTF8String, NULL)];
 				if (xpc_dictionary_get_bool(xdict, "jailbreak-systemwide")) {
-					if(![clientPath hasPrefix:@"/private/var/containers/Bundle/Application/"])
+					if(!isAppPath(clientPath))
 					{
 						uint64_t msgId = xpc_dictionary_get_uint64(xdict, "id");
 						xpc_object_t xreply = xpc_dictionary_create_reply(xdict);

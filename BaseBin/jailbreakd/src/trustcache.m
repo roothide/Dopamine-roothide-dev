@@ -129,7 +129,6 @@ void dynamicTrustCacheUploadCDHashesFromArray(NSArray *cdHashArray)
 	}
 }
 
-void ensure_mappable_in_var(const char* path);
 void dynamicTrustCacheUploadDirectory(NSString *directoryPath)
 {
 	NSString *basebinPath = [[jbrootPath(@"/basebin") stringByResolvingSymlinksInPath] stringByStandardizingPath];
@@ -161,9 +160,7 @@ void dynamicTrustCacheUploadDirectory(NSString *directoryPath)
 					}
 
 					JBLogDebug("[dynamicTrustCacheUploadDirectory %s] Uploading cdhash of %s", directoryPath.UTF8String, enumURL.path.UTF8String);
-					
-					ensure_mappable_in_var(enumURL.path.UTF8String);
-					
+										
 					[mappedInPage addEntry:entry];
 				});
 			}

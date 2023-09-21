@@ -75,7 +75,7 @@
 "Credits_Button_Source_Code" = "ソースコード";
 
 
-"Credits_Footer_Dopamine_Version %@\nOS:%@" = "Dopamine version %@\n%@";
+"Credits_Footer_Dopamine_Version %@\nOS:%@" = "Dopamine(roothide) version %@\n%@";
 
 
 "Credits_Header_Special_Thanks" = "Special thanks:";

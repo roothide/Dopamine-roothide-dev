@@ -42,7 +42,7 @@
 
 "Credits_Button_Source_Code" = "شفرة المصدر";
 
-"Credits_Footer_Dopamine_Version %@\nOS:%@" = "إصدار Dopamine هو %@\n%@";
+"Credits_Footer_Dopamine_Version %@\nOS:%@" = "إصدار Dopamine(roothide) هو %@\n%@";
 
 "Credits_Header_Special_Thanks" = "شكر خاص:";
 

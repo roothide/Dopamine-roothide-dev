@@ -189,11 +189,11 @@ struct JailbreakView: View {
                 //reboot();
             }
         }, message: { Text("original dopamine jailbroken currently, please reboot the device.") })
-        .alert("Warning", isPresented:$showPreviewWarning, actions: {
-            Button("OK", role: .none) {
-                //reboot();
-            }
-        }, message: { Text("this is a technical preview version and is not recommended for end users.") })
+//        .alert("Warning", isPresented:$showPreviewWarning, actions: {
+//            Button("OK", role: .none) {
+//                //reboot();
+//            }
+//        }, message: { Text("this is a technical preview version and is not recommended for end users.") })
     }
     
     
@@ -452,6 +452,7 @@ struct JailbreakView: View {
     func uiJailbreak() {
         jailbreakingProgress = .jailbreaking
         let dpDefaults = dopamineDefaults()
+        dpDefaults.set(NSLocale.current.identifier, forKey: "locale")
         dpDefaults.set(dpDefaults.integer(forKey: "totalJailbreaks") + 1, forKey: "totalJailbreaks")
         DispatchQueue(label: "Dopamine").async {
             sleep(1)

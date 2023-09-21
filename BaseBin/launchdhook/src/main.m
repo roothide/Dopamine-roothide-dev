@@ -22,19 +22,19 @@ NSString *generateSystemWideSandboxExtensions(void)
 {
 	NSMutableString *extensionString = [NSMutableString new];
 
-	char jbrootpath[PATH_MAX];
-	char jbrootpath2[PATH_MAX];
-	snprintf(jbrootpath, sizeof(jbrootpath), "/private/var/.jbroot-%s/", JBRAND);
-	snprintf(jbrootpath2, sizeof(jbrootpath2), "/private/var/containers/Bundle/.jbroot-%s/", JBRAND);
+	char jbrootbase[PATH_MAX];
+	char jbrootsecondary[PATH_MAX];
+	snprintf(jbrootbase, sizeof(jbrootbase), "/private/var/containers/Bundle/Application/.jbroot-%s/", JBRAND);
+	snprintf(jbrootsecondary, sizeof(jbrootsecondary), "/private/var/mobile/Containers/Data/Application/.jbroot-%s/", JBRAND);
 
-	[extensionString appendString:[NSString stringWithUTF8String:sandbox_extension_issue_file("com.apple.app-sandbox.read", jbrootpath, 0)]];
+	[extensionString appendString:[NSString stringWithUTF8String:sandbox_extension_issue_file("com.apple.app-sandbox.read", jbrootbase, 0)]];
 	[extensionString appendString:@"|"];
-	[extensionString appendString:[NSString stringWithUTF8String:sandbox_extension_issue_file("com.apple.sandbox.executable", jbrootpath, 0)]];
+	[extensionString appendString:[NSString stringWithUTF8String:sandbox_extension_issue_file("com.apple.sandbox.executable", jbrootbase, 0)]];
 	[extensionString appendString:@"|"];
 
-	[extensionString appendString:[NSString stringWithUTF8String:sandbox_extension_issue_file("com.apple.app-sandbox.read", jbrootpath2, 0)]];
+	[extensionString appendString:[NSString stringWithUTF8String:sandbox_extension_issue_file("com.apple.app-sandbox.read", jbrootsecondary, 0)]];
 	[extensionString appendString:@"|"];
-	[extensionString appendString:[NSString stringWithUTF8String:sandbox_extension_issue_file("com.apple.sandbox.executable", jbrootpath2, 0)]];
+	[extensionString appendString:[NSString stringWithUTF8String:sandbox_extension_issue_file("com.apple.sandbox.executable", jbrootsecondary, 0)]];
 	[extensionString appendString:@"|"];
 
 	// Ensure the whole system has access to com.opa334.jailbreakd.systemwide

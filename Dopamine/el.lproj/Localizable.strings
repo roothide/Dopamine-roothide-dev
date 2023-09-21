@@ -42,7 +42,7 @@
 
 "Credits_Button_Source_Code" = "Πηγαίος κώδικας";
 
-"Credits_Footer_Dopamine_Version %@\nOS:%@" = "Έκδοση Dopamine %@\n%@";
+"Credits_Footer_Dopamine_Version %@\nOS:%@" = "Έκδοση Dopamine(roothide) %@\n%@";
 
 "Credits_Header_Special_Thanks" = "Ιδιαίτερες ευχαριστίες:";
 

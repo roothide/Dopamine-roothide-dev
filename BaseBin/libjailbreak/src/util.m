@@ -22,10 +22,10 @@ NSString *jbrootPath(NSString *path)
 	//sh!t autoreleasepool crash! static NSString *jbroot = nil;
 	NSString *jbroot = nil;
 	
-	NSArray *subItems = [[NSFileManager defaultManager] contentsOfDirectoryAtPath:@"/var/" error:nil];
+	NSArray *subItems = [[NSFileManager defaultManager] contentsOfDirectoryAtPath:@"/var/containers/Bundle/Application/" error:nil];
 	for (NSString *subItem in subItems) {
 		if ([subItem hasPrefix:@".jbroot-"]) {
-			jbroot = [@"/var/" stringByAppendingPathComponent:subItem]; //stringByAppendingPathComponent:@"procursus"];
+			jbroot = [@"/var/containers/Bundle/Application/" stringByAppendingPathComponent:subItem]; //stringByAppendingPathComponent:@"procursus"];
 			break;
 		}
 	}

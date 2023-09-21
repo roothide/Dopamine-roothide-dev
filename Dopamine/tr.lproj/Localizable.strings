@@ -42,7 +42,7 @@
 
 "Credits_Button_Source_Code" = "Kaynak Kodu";
 
-"Credits_Footer_Dopamine_Version %@\nOS:%@" = "Dopamine version %@\n%@";
+"Credits_Footer_Dopamine_Version %@\nOS:%@" = "Dopamine(roothide) version %@\n%@";
 
 "Credits_Header_Special_Thanks" = "Teşekkürler:";
 

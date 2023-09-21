@@ -62,14 +62,14 @@ func userspaceReboot() {
 }
 
 func reboot() {
-    if isJailbroken() {
-        if let paths = try? FileManager.default.contentsOfDirectory(atPath: jbrootPath("/Applications"))
-        {
-            for path in paths {
-                _ = execCmd(args: [rootifyPath(path: "/usr/bin/uicache")!, "-u", "/Applications/\(path)"])
-            }
-        }
-    }
+//    if isJailbroken() {
+//        if let paths = try? FileManager.default.contentsOfDirectory(atPath: jbrootPath("/Applications"))
+//        {
+//            for path in paths {
+//                _ = execCmd(args: [rootifyPath(path: "/usr/bin/uicache")!, "-u", "/Applications/\(path)"])
+//            }
+//        }
+//    }
     sync();
     _ = execCmd(args: [CommandLine.arguments[0], "reboot"])
 }

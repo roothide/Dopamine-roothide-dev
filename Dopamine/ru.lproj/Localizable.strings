@@ -42,7 +42,7 @@
 
 "Credits_Button_Source_Code" = "Исходный код";
 
-"Credits_Footer_Dopamine_Version %@\nOS:%@" = "Версия Dopamine %@\n%@";
+"Credits_Footer_Dopamine_Version %@\nOS:%@" = "Версия Dopamine(roothide) %@\n%@";
 
 "Credits_Header_Special_Thanks" = "Особая благодарность:";
 

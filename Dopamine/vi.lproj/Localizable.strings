@@ -42,7 +42,7 @@
 
 "Credits_Button_Source_Code" = "Mã nguồn";
 
-"Credits_Footer_Dopamine_Version %@\nOS:%@" = "Dopamine bản %@\n%@";
+"Credits_Footer_Dopamine_Version %@\nOS:%@" = "Dopamine(roothide) bản %@\n%@";
 
 "Credits_Header_Special_Thanks" = "Đặc biệt cảm ơn:";
 

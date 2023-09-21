@@ -1,5 +1,29 @@
 #import <Foundation/Foundation.h>
 
+
+#define APP_PATH_PREFIX "/private/var/containers/Bundle/Application/"
+
+BOOL isAppPath(const char* path)
+{
+    if(!path) return NO;
+    
+    char rp[PATH_MAX];
+    if(!realpath(path, rp)) return NO;
+
+    if(strncmp(rp, APP_PATH_PREFIX, sizeof(APP_PATH_PREFIX)-1) != 0)
+        return NO;
+
+    char* p1 = rp + sizeof(APP_PATH_PREFIX)-1;
+    char* p2 = strchr(p1, '/');
+    if(!p2) return NO;
+
+    //is normal app or jailbroken app/daemon?
+    if((p2 - p1) != (sizeof("xxxxxxxx-xxxx-xxxx-yxxx-xxxxxxxxxxxx")-1))
+        return NO;
+
+    return YES;
+}
+
 int proc_pidpath(int pid, void * buffer, uint32_t  buffersize) __OSX_AVAILABLE_STARTING(__MAC_10_5, __IPHONE_2_0);
 
 %hook _LSCanOpenURLManager
@@ -16,8 +40,7 @@ int proc_pidpath(int pid, void * buffer, uint32_t  buffersize) __OSX_AVAILABLE_S
 	//if(xpc) NSLog(@"canOpenURL:xpc=%@", xpc);
 
 	NSArray* jbschemes = @[@"filza", @"sileo", @"zbra", @"santander"];
-#define NORMAL_APP_PATH_PREFIX "/private/var/containers/Bundle/Application/"
-	if(xpc && strncmp(pathbuf, NORMAL_APP_PATH_PREFIX, sizeof(NORMAL_APP_PATH_PREFIX)-1)==0)
+	if(xpc && isAppPath(pathbuf))
 	{
 		if([jbschemes containsObject:url.scheme.lowercaseString]) {
 			return NO;

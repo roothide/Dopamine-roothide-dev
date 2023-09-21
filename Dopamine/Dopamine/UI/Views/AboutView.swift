@@ -29,7 +29,7 @@ struct AboutView: View {
         ("kirb", "http://github.com/kirb"),
         ("Amy While", "http://github.com/elihwyma"),
         ("roothide", "http://github.com/RootHide"),
-        ("Shadow-", "http://github.com/RootHide"),
+        ("Shadow-", "http://iosjb.top/"),
     ]
     
     var body: some View {

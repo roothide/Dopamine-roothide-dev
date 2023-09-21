@@ -42,7 +42,7 @@
 
 "Credits_Button_Source_Code" = "原始碼";
 
-"Credits_Footer_Dopamine_Version %@\nOS:%@" = "Dopamine 版本 %@\n%@";
+"Credits_Footer_Dopamine_Version %@\nOS:%@" = "Dopamine(roothide) 版本 %@\n%@";
 
 "Credits_Header_Special_Thanks" = "特別緻謝：";
 

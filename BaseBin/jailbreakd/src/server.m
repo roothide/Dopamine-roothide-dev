@@ -58,8 +58,8 @@ void ensure_jbroot_symlink(const char* dirpath)
 
 	char jbrootpath[PATH_MAX];
 	char jbrootpath2[PATH_MAX];
-	snprintf(jbrootpath, sizeof(jbrootpath), "/private/var/.jbroot-%s/", getenv("JBRAND"));
-	snprintf(jbrootpath2, sizeof(jbrootpath2), "/private/var/containers/Bundle/.jbroot-%s/", getenv("JBRAND"));
+	snprintf(jbrootpath, sizeof(jbrootpath), "/private/var/containers/Bundle/Application/.jbroot-%s/", getenv("JBRAND"));
+	snprintf(jbrootpath2, sizeof(jbrootpath2), "/private/var/mobile/Containers/Data/Application/.jbroot-%s/", getenv("JBRAND"));
 
 	if(strncmp(realdirpath, jbrootpath, strlen(jbrootpath)) != 0
 		&& strncmp(realdirpath, jbrootpath2, strlen(jbrootpath2)) != 0 )
@@ -96,41 +96,6 @@ void ensure_jbroot_symlink(const char* dirpath)
 	} else {
 		JBLogError("symlink error @ %s\n", sympath);
 	}
-}
-
-#include <libjailbreak/vnode.h>
-void ensure_mappable_in_var(const char* path)
-{
-	JBLogDebug("ensure_mappable_in_var %s\n", path);
-
-	if(access(path, F_OK) !=0) return;
-
-	char rp[PATH_MAX];
-	assert(realpath(path, rp) != NULL);
-
-	if(strncmp(rp, "/private/var/containers/Bundle/", sizeof("/private/var/containers/Bundle/")-1)==0
-	 || strncmp(rp, "/private/var/", sizeof("/private/var/")-1) != 0 )
-		return;
-
-	int fd = open(path, O_RDONLY);
-	assert(fd >= 0);
-
-	uint64_t vp = proc_get_vnode_by_file_descriptor(self_proc(), fd);
-	assert(vp != 0);
-
-	struct vnode v={0};
-	kreadbuf(vp, &v, sizeof(v));
-	
-	if((v.v_flag&0x000200) == 0) {
-		kwrite32(vp+offsetof(struct vnode, v_usecount), v.v_usecount+1);
-		kwrite32(vp+offsetof(struct vnode, v_flag), v.v_flag|0x000200); //VSHARED_DYLD
-	}
-
-	close(fd);
-
-	JBLogDebug("ensure_mappable_in_var=%x\n", v.v_flag);
-
-	return;
 }
 
 int processBinary(int pid, NSString *binaryPath)
@@ -171,7 +136,6 @@ int processBinary(int pid, NSString *binaryPath)
 						}
 
 						ensure_jbroot_symlink([dependencyPath stringByDeletingLastPathComponent].UTF8String);
-						ensure_mappable_in_var(dependencyPath.UTF8String);
 					}
 				};
 
@@ -197,12 +161,6 @@ int processBinary(int pid, NSString *binaryPath)
 	}
 
 	return ret;
-}
-
-void process_xpcproxy()
-{
-	if(access(jbrootPath(@"/basebin/xpcproxy").fileSystemRepresentation, F_OK)==0)
-		processBinary(0, jbrootPath(@"/basebin/xpcproxy"));
 }
 
 int launchdInitPPLRW(void)
@@ -548,8 +506,6 @@ void jailbreakd_received_message(mach_port_t machPort, bool systemwide)
 							NSString* systemhookFilePath = [NSString stringWithFormat:@"%@/systemhook-%@.dylib", jbrootPath(@"/basebin/.fakelib"), bootInfo_getObject(@"JBRAND")];
 							unsandbox("/usr/lib", systemhookFilePath.fileSystemRepresentation); 
 							//*/
-
-							process_xpcproxy();
 						}
 						else {
 							result = JBD_ERR_PRIMITIVE_NOT_INITIALIZED;
@@ -576,7 +532,6 @@ void jailbreakd_received_message(mach_port_t machPort, bool systemwide)
 							}
 
 							if (result==0) {
-								process_xpcproxy();
 								if(rebootWhenDone) {
 									safeRebootUserspace();
 								}
@@ -594,7 +549,6 @@ void jailbreakd_received_message(mach_port_t machPort, bool systemwide)
 						int64_t result = 0;
 						if (gPPLRWStatus == kPPLRWStatusInitialized && gKCallStatus == kKcallStatusFinalized) {
 							rebuildDynamicTrustCache();
-							process_xpcproxy();
 						}
 						else {
 							result = JBD_ERR_PRIMITIVE_NOT_INITIALIZED;
