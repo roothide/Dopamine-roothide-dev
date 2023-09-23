@@ -5,7 +5,9 @@
 #import "../systemhook/src/common.h"
 #import "boomerang.h"
 #import "substrate.h"
+#include "crashreporter.h"
 #import <mach-o/dyld.h>
+#include <pthread.h>
 
 
 #define APP_PATH_PREFIX "/private/var/containers/Bundle/Application/"
@@ -74,6 +76,32 @@ BOOL roothideBlacklistedApp(NSString* identifier)
 
 int (*posix_spawn_orig)(pid_t *restrict, const char *restrict, const posix_spawn_file_actions_t *restrict, posix_spawnattr_t *restrict, char *const[restrict], char *const[restrict]);
 
+#include <os/lock.h>
+static os_unfair_lock spinlock=OS_UNFAIR_LOCK_INIT; //do not use pthread mutext or nslock
+
+int posix_spawn_orig_wrapper(pid_t *restrict pid, const char *restrict path,
+					   const posix_spawn_file_actions_t *restrict file_actions,
+					    posix_spawnattr_t *restrict attrp,
+					   char *const argv[restrict],
+					   char *const envp[restrict])
+{
+	// we need to disable the crash reporter during the orig call
+	// otherwise the child process inherits the exception ports
+	// and this would trip jailbreak detections
+	
+	// //posix_spawn run in multi-thread on launchd
+	// os_unfair_lock_lock(&spinlock);
+	// watch dog timeout???  may because of posix_spawn_with_filter in posix_spawn? should hook __posix_spawn
+
+	crashreporter_pause();
+	int r = posix_spawn_orig(pid, path, file_actions, attrp, argv, envp);
+	crashreporter_resume();
+
+	// os_unfair_lock_unlock(&spinlock);
+
+	return r;
+}
+
 int posix_spawn_hook(pid_t *restrict pidp, const char *restrict path,
 					   const posix_spawn_file_actions_t *restrict file_actions,
 					   posix_spawnattr_t *restrict attrp,
@@ -115,7 +143,7 @@ int posix_spawn_hook(pid_t *restrict pidp, const char *restrict path,
 			
 			ksync_lock();
 			// Say goodbye to this process
-			return posix_spawn_orig(pidp, path, file_actions, attrp, argv, envp);
+			return posix_spawn_orig_wrapper(pidp, path, file_actions, attrp, argv, envp);
 		}
 	}
 
@@ -152,7 +180,7 @@ int posix_spawn_hook(pid_t *restrict pidp, const char *restrict path,
 
 	if(appIdentifier && roothideBlacklistedApp(appIdentifier)) {
 		JBLogDebug("roothideBlacklistedApp:%s, %s", appIdentifier.UTF8String, path);
-		return posix_spawn_orig(pidp, path, file_actions, attrp, argv, envp);
+		return posix_spawn_orig_wrapper(pidp, path, file_actions, attrp, argv, envp);
 	}
 
 	posix_spawnattr_t attr;
@@ -183,7 +211,7 @@ int posix_spawn_hook(pid_t *restrict pidp, const char *restrict path,
 
 	int pid=0;
 	if(!pidp) pidp = &pid; //atomic with syscall
-	int ret = spawn_hook_common(pidp, path, file_actions, attrp, argv, envp, posix_spawn_orig);
+	int ret = spawn_hook_common(pidp, path, file_actions, attrp, argv, envp, posix_spawn_orig_wrapper);
 	pid = *pidp;
 
 	JBLogDebug("spawn ret=%d pid=%d", ret, pid);

@@ -39,7 +39,19 @@ int proc_pidpath(int pid, void * buffer, uint32_t  buffersize) __OSX_AVAILABLE_S
 	NSLog(@"canOpenURL:%@ publicSchemes:%d privateSchemes:%d XPCConnection:%@ proc:%d,%s", url, ispublic, isprivate, xpc, xpc.processIdentifier, pathbuf);
 	//if(xpc) NSLog(@"canOpenURL:xpc=%@", xpc);
 
-	NSArray* jbschemes = @[@"filza", @"sileo", @"zbra", @"santander"];
+	NSArray* jbschemes = @[
+		@"filza", 
+		@"db-lmvo0l08204d0a0",
+		@"boxsdk-810yk37nbrpwaee5907xc4iz8c1ay3my",
+		@"com.googleusercontent.apps.802910049260-0hf6uv6nsj21itl94v66tphcqnfl172r",
+		@"sileo",
+		@"zbra", 
+		@"santander", 
+		@"icleaner", 
+		@"xina", 
+		@"ssh"
+	];
+
 	if(xpc && isAppPath(pathbuf))
 	{
 		if([jbschemes containsObject:url.scheme.lowercaseString]) {

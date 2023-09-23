@@ -48,7 +48,7 @@ open class KernelPatchfinder {
     
     public lazy var namecache: (UInt64,UInt64)? = {
         //MOV W10, #0x4C11DB7 in ncinit->(inline)init_crc32
-        guard let crcflag = textExec.addrOf([0x5283B6EA,0x72A0982A]) else {
+        guard let crcflag = textExec.addrOf([0x5283B6EA,0x72A0982A]) ?? textExec.addrOf([0x5283B6EB,0x72A0982B]) else { //EA B6 83 52 2A 98 A0 72
             return nil
         }
         NSLog("crcflag=\(crcflag)")

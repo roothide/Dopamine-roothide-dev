@@ -78,14 +78,23 @@ struct UpdateDownloadingView: View {
                                 }
                             }
                         } else {
-                            updateState = .updating
-                            DispatchQueue.global(qos: .userInitiated).async {
-                                updateEnvironment()
-                            }
+                            reboot();
                         }
                         
                     } label: {
-                        Label(title: { Text("Button_Update")  }, icon: { Image(systemName: "arrow.down") })
+                        Label(title: {
+                            if type == .environment {
+                                Text("Reboot Device")
+                            } else {
+                                Text("Button_Update")
+                            }
+                        }, icon: {
+                            if type == .environment {
+                                Image(systemName: "arrow.clockwise.circle")
+                            } else {
+                                Image(systemName: "arrow.down")
+                            }
+                        })
                             .foregroundColor(.white)
                             .padding()
                             .frame(maxWidth: 280)

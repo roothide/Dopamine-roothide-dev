@@ -34,6 +34,24 @@ BOOL isAppPath(NSString* _path)
     return YES;
 }
 
+BOOL pathFileEqual(NSString* path1, NSString* path2)
+{
+	if(!path1 || !path2) return NO;
+
+	struct stat st1;
+	if(stat(path1.fileSystemRepresentation, &st1) != 0)
+		return NO;
+
+	struct stat st2;
+	if(stat(path2.fileSystemRepresentation, &st2) != 0)
+		return NO;
+	
+	if(st1.st_dev != st2.st_dev || st1.st_ino != st2.st_ino) 
+		return NO;
+
+	return YES;
+}
+
 // Server routine to make jailbreakd able to get back primitives when it restarts
 void (*xpc_handler_orig)(uint64_t a1, uint64_t a2, xpc_object_t xdict);
 void xpc_handler_hook(uint64_t a1, uint64_t a2, xpc_object_t xdict)
@@ -45,8 +63,8 @@ void xpc_handler_hook(uint64_t a1, uint64_t a2, xpc_object_t xdict)
 				audit_token_t auditToken = {};
 				xpc_dictionary_get_audit_token(xdict, &auditToken);
 				pid_t clientPid = audit_token_to_pid(auditToken);
-				NSString *clientPath = [NSString stringWithUTF8String:realpath(proc_get_path(clientPid).UTF8String, NULL)];
-				NSString *jailbreakdPath = [NSString stringWithUTF8String:realpath(jbrootPath(@"/basebin/jailbreakd").UTF8String, NULL)];
+				NSString *clientPath = proc_get_path(clientPid);
+				NSString *jailbreakdPath = jbrootPath(@"/basebin/jailbreakd");
 				if (xpc_dictionary_get_bool(xdict, "jailbreak-systemwide")) {
 					if(!isAppPath(clientPath))
 					{
@@ -87,7 +105,7 @@ void xpc_handler_hook(uint64_t a1, uint64_t a2, xpc_object_t xdict)
 					char *xdictDescription = xpc_copy_description(xdict);
 					JBLogDebug("jailbreak related message %s coming from binary: %s", xdictDescription, clientPath.UTF8String);
 					free(xdictDescription);
-					if ([clientPath isEqualToString:jailbreakdPath]) {
+					if (pathFileEqual(clientPath, jailbreakdPath)) {
 						uint64_t msgId = xpc_dictionary_get_uint64(xdict, "id");
 						xpc_object_t xreply = xpc_dictionary_create_reply(xdict);
 						switch (msgId) {

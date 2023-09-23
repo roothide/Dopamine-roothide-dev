@@ -39,7 +39,7 @@ struct JailbreakView: View {
         var action: (() -> ())? = nil
     }
     
-    @State var originalDopamineJailbroken = false
+    @State var rootlessDopamineJailbroken = false
     @State var showPreviewWarning = !isBootstrapped()
     
     @State var isSettingsPresented = false
@@ -184,11 +184,11 @@ struct JailbreakView: View {
                 UIApplication.shared.open(.init(string: "https://www.youtube.com/watch?v=dQw4w9WgXcQ")!)
             }
         }
-        .alert("Jailbroken", isPresented: $originalDopamineJailbroken, actions: {
+        .alert("Jailbroken", isPresented: $rootlessDopamineJailbroken, actions: {
             Button("OK", role: .none) {
                 //reboot();
             }
-        }, message: { Text("original dopamine jailbroken currently, please reboot the device.") })
+        }, message: { Text("rootless dopamine jailbroken at present, please reboot the device.") })
 //        .alert("Warning", isPresented:$showPreviewWarning, actions: {
 //            Button("OK", role: .none) {
 //                //reboot();
@@ -292,7 +292,7 @@ struct JailbreakView: View {
                 UIImpactFeedbackGenerator(style: .medium).impactOccurred()
                 
                 if isOriginalDopamineJailbroken() {
-                    originalDopamineJailbroken = true
+                    rootlessDopamineJailbroken = true
                     return
                 }
                 
@@ -453,7 +453,7 @@ struct JailbreakView: View {
         jailbreakingProgress = .jailbreaking
         let dpDefaults = dopamineDefaults()
         dpDefaults.set(NSLocale.current.identifier, forKey: "locale")
-        dpDefaults.set(dpDefaults.integer(forKey: "totalJailbreaks") + 1, forKey: "totalJailbreaks")
+        dpDefaults.set(dpDefaults.integer(forKey: "total_jailbreaks") + 1, forKey: "total_jailbreaks")
         DispatchQueue(label: "Dopamine").async {
             sleep(1)
             
@@ -462,7 +462,9 @@ struct JailbreakView: View {
                 jailbreakingError = e
                 
                 if e == nil {
-                    dpDefaults.set(dpDefaults.integer(forKey: "successfulJailbreaks") + 1, forKey: "successfulJailbreaks")
+                    dpDefaults.set(dpDefaults.integer(forKey: "successful_jailbreaks") + 1, forKey: "successful_jailbreaks")
+                    dpDefaults.synchronize()
+                    
                     UINotificationFeedbackGenerator().notificationOccurred(.success)
                     let tweakInjectionEnabled = dpDefaults.bool(forKey: "tweakInjectionEnabled")
                     

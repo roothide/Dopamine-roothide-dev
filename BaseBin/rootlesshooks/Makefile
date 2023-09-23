@@ -16,3 +16,7 @@ rootlesshooks_LDFLAGS = -rpath @loader_path/fallback
 lsd.x_CFLAGS = -fno-objc-arc #lsd using mrc
 
 include $(THEOS_MAKE_PATH)/tweak.mk
+
+after-rootlesshooks-all::
+	install_name_tool -change @loader_path/.jbroot/usr/lib/libsubstrate.dylib @rpath/CydiaSubstrate.framework/CydiaSubstrate $(THEOS_OBJ_DIR)/rootlesshooks.dylib
+	ldid -S $(THEOS_OBJ_DIR)/rootlesshooks.dylib

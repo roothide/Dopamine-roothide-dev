@@ -12,6 +12,7 @@
 #import "xpc_hook.h"
 #import "daemon_hook.h"
 #import "ipc_hook.h"
+#include "crashreporter.h"
 #import "../systemhook/src/common.h"
 
 int gLaunchdImageIndex = -1;
@@ -47,6 +48,8 @@ NSString *generateSystemWideSandboxExtensions(void)
 
 __attribute__((constructor)) static void initializer(void)
 {
+	crashreporter_start();
+
 	bool comingFromUserspaceReboot = bootInfo_getUInt64(@"environmentInitialized");
 	if (comingFromUserspaceReboot) {
 		JBLogDebug("comingFromUserspaceReboot=1");
