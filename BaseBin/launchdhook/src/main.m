@@ -26,7 +26,7 @@ NSString *generateSystemWideSandboxExtensions(void)
 	char jbrootbase[PATH_MAX];
 	char jbrootsecondary[PATH_MAX];
 	snprintf(jbrootbase, sizeof(jbrootbase), "/private/var/containers/Bundle/Application/.jbroot-%s/", JBRAND);
-	snprintf(jbrootsecondary, sizeof(jbrootsecondary), "/private/var/mobile/Containers/Data/Application/.jbroot-%s/", JBRAND);
+	snprintf(jbrootsecondary, sizeof(jbrootsecondary), "/private/var/mobile/Containers/Shared/AppGroup/.jbroot-%s/", JBRAND);
 
 	[extensionString appendString:[NSString stringWithUTF8String:sandbox_extension_issue_file("com.apple.app-sandbox.read", jbrootbase, 0)]];
 	[extensionString appendString:@"|"];

@@ -116,7 +116,7 @@ const char *crashreporter_string_for_code(int code)
 
 void crashreporter_dump_backtrace_line(FILE *f, vm_address_t addr)
 {
-	Dl_info info;
+	Dl_info info={0};
 	dladdr((void *)addr, &info);
 
 	const char *sname = info.dli_sname;
@@ -130,7 +130,7 @@ void crashreporter_dump_backtrace_line(FILE *f, vm_address_t addr)
 
 void crashreporter_dump(FILE *f, int code, int subcode, arm_thread_state64_t threadState, arm_exception_state64_t exceptionState, vm_address_t *bt)
 {
-	struct utsname systemInfo;
+	struct utsname systemInfo={0};
     uname(&systemInfo);
 
 	uint64_t pc = (uint64_t)__darwin_arm_thread_state64_get_pc(threadState);
@@ -216,12 +216,12 @@ void crashreporter_catch(exception_raise_request *request, exception_raise_reply
 void *crashreporter_listen(void *arg)
 {
 	while (true) {
-		mach_msg_header_t msg;
+		mach_msg_header_t msg={0};
 		msg.msgh_local_port = gExceptionPort;
 		msg.msgh_size = 1024;
 		mach_msg_receive(&msg);
 
-		exception_raise_reply reply;
+		exception_raise_reply reply={0};
 		crashreporter_catch((exception_raise_request *)&msg, &reply);
 
 		reply.header.msgh_bits = MACH_MSGH_BITS(MACH_MSGH_BITS_REMOTE(msg.msgh_bits), 0);

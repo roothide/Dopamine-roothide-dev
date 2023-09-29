@@ -20,15 +20,19 @@ extern size_t der_sizeof_plist(CFPropertyListRef pl, CFErrorRef *error);
 NSString *jbrootPath(NSString *path)
 {
 	//sh!t autoreleasepool crash! static NSString *jbroot = nil;
-	NSString *jbroot = nil;
-	
-	NSArray *subItems = [[NSFileManager defaultManager] contentsOfDirectoryAtPath:@"/var/containers/Bundle/Application/" error:nil];
-	for (NSString *subItem in subItems) {
-		if ([subItem hasPrefix:@".jbroot-"]) {
-			jbroot = [@"/var/containers/Bundle/Application/" stringByAppendingPathComponent:subItem]; //stringByAppendingPathComponent:@"procursus"];
-			break;
+
+	static NSString *jbroot = nil;
+
+	static dispatch_once_t onceToken;
+	dispatch_once (&onceToken, ^{
+		NSArray *subItems = [[NSFileManager defaultManager] contentsOfDirectoryAtPath:@"/var/containers/Bundle/Application/" error:nil];
+		for (NSString *subItem in subItems) {
+			if ([subItem hasPrefix:@".jbroot-"]) {
+				jbroot = [@"/var/containers/Bundle/Application/" stringByAppendingPathComponent:subItem]; //stringByAppendingPathComponent:@"procursus"];
+				break;
+			}
 		}
-	}
+	});
 
 	assert(jbroot != nil);
 	return [jbroot stringByAppendingPathComponent:path];

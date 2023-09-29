@@ -183,7 +183,7 @@ int posix_spawn_hook(pid_t *restrict pidp, const char *restrict path,
 		return posix_spawn_orig_wrapper(pidp, path, file_actions, attrp, argv, envp);
 	}
 
-	posix_spawnattr_t attr;
+	posix_spawnattr_t attr=NULL;
 	if(!attrp) {
 		attrp = &attr;
 		posix_spawnattr_init(&attr);
@@ -229,6 +229,8 @@ int posix_spawn_hook(pid_t *restrict pidp, const char *restrict path,
     // NSArray *csss = [NSThread callStackSymbols];
     // JBLogDebug("callstack=\n%s\n", [NSString stringWithFormat:@"%@", csss].UTF8String);
 
+	if(attr) posix_spawnattr_destroy(&attr);
+	
 	return ret;
 }
 

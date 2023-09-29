@@ -78,7 +78,7 @@ func isJailbroken() -> Bool {
     
     if isSandboxed() { return false } // ui debugging
     
-    if __isOriginalDopamineJailbroken() {
+    if __isRootlessDopamineJailbroken() {
         return false
     }
     
@@ -87,8 +87,8 @@ func isJailbroken() -> Bool {
     return jbdPid != 0
 }
 
-func isOriginalDopamineJailbroken() -> Bool {
-    return __isOriginalDopamineJailbroken();
+func isRootlessDopamineJailbroken() -> Bool {
+    return __isRootlessDopamineJailbroken();
 }
 
 func isBootstrapped() -> Bool {

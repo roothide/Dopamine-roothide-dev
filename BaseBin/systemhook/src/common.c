@@ -31,6 +31,7 @@ extern char HOOK_DYLIB_PATH[];
 #define JBD_MSG_PATCH_SPAWN  1001
 #define JBD_MSG_PATCH_EXEC_ADD  1002
 #define JBD_MSG_PATCH_EXEC_DEL  1003
+#define JBD_MSG_LOCK_DSC_PAGE	1004
 
 #define JETSAM_MULTIPLIER 3
 #define XPC_TIMEOUT 0.1 * NSEC_PER_SEC
@@ -259,6 +260,21 @@ int64_t jbdswPatchSpawn(int pid, bool resume)
 	return result;
 }
 
+int64_t jbdswLockDSCPage(uint64_t address, uint64_t size)
+{
+	xpc_object_t message = xpc_dictionary_create_empty();
+	xpc_dictionary_set_uint64(message, "id", JBD_MSG_LOCK_DSC_PAGE);
+	xpc_dictionary_set_uint64(message, "addr", address);
+	xpc_dictionary_set_uint64(message, "size", size);
+	xpc_object_t reply = sendJBDMessageSystemWide(message);
+	int64_t result = -1;
+	if (reply) {
+		result  = xpc_dictionary_get_int64(reply, "result");
+		xpc_release(reply);
+	}
+	return result;
+}
+
 int64_t jbdswPatchExecAdd(const char* execfile, bool resume)
 {
 	xpc_object_t message = xpc_dictionary_create_empty();
@@ -332,7 +348,9 @@ int resolvePath(const char *file, const char *searchPath, int (^attemptHandler)(
 	struct stat sb;
 	char path_buf[PATH_MAX];
 
-	if ((env_path = getenv("PATH")) == NULL)
+	if(searchPath)
+		env_path = searchPath;
+	else if ((env_path = getenv("PATH")) == NULL)
 		env_path = _PATH_DEFPATH;
 
 	/* If it's an absolute or relative path name, it's easy. */

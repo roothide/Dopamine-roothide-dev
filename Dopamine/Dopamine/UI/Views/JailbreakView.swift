@@ -291,7 +291,7 @@ struct JailbreakView: View {
             Button {
                 UIImpactFeedbackGenerator(style: .medium).impactOccurred()
                 
-                if isOriginalDopamineJailbroken() {
+                if isRootlessDopamineJailbroken() {
                     rootlessDopamineJailbroken = true
                     return
                 }

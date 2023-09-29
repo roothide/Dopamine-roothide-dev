@@ -3,6 +3,10 @@
         "dlfcn.h": "c",
         "filesystem": "c",
         "random": "c",
-        "syslog.h": "c"
+        "syslog.h": "c",
+        "__locale": "c",
+        "__string": "c",
+        "string": "c",
+        "string_view": "c"
     }
 }

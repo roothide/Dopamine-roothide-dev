@@ -49,7 +49,10 @@ int proc_pidpath(int pid, void * buffer, uint32_t  buffersize) __OSX_AVAILABLE_S
 		@"santander", 
 		@"icleaner", 
 		@"xina", 
-		@"ssh"
+		@"ssh",
+		@"apt-repo", 
+		@"cydia",
+		@"activator",
 	];
 
 	if(xpc && isAppPath(pathbuf))

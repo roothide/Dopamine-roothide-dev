@@ -197,7 +197,7 @@ int patch_proc_csflags(int pid)
 // 	ret = -1;
 
 // final:
-//     if(task) {
+//     if(MACH_PORT_VALID(task)) {
 // 		if(resume) task_resume(task);
 // 		mach_port_deallocate(mach_task_self(), task);
 // 	}
