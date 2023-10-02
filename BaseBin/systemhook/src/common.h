@@ -1,5 +1,8 @@
 #include <CoreFoundation/CoreFoundation.h>
 #include <spawn.h>
+#include <sys/syslog.h>
+
+#define SYSLOG(...) {openlog("systemhook",LOG_PID,LOG_AUTH);syslog(LOG_DEBUG, __VA_ARGS__);closelog();}
 
 #define JB_ENV_REQUIRED_COUNT 5
 

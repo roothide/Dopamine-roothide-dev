@@ -1062,6 +1062,13 @@ int reboot3(uint64_t flags, ...);
 #define RB2_USERREBOOT (0x2000000000000000llu)
 void safeRebootUserspace()
 {
+
+	run_unsandboxed(^{
+	// Fix Xcode debugging being broken after the userspace reboot
+	int retval = unmount("/Developer", MNT_FORCE);
+	JBLogDebug("unmount /Developer : %d %d,%s", retval, errno, strerror(errno));
+	});
+
 	ksync_lock(); //wait all atomic kernel operation then lock 
 
 	sync();

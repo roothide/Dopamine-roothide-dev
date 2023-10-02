@@ -423,9 +423,105 @@ void applyKbdFix(void)
 	killall("/System/Library/TextInput/kbd", false);
 }
 
-char HOOK_DYLIB_PATH[PATH_MAX] = {0}; //"/usr/lib/systemhook.dylib"
+#define APP_PATH_PREFIX "/private/var/containers/Bundle/Application/"
 
-#include <sys/syslog.h>
+char* getAppUUIDOffset(const char* path)
+{
+    if(!path) return NULL;
+
+    char rp[PATH_MAX];
+    if(!realpath(path, rp)) return NULL;
+
+    if(strncmp(rp, APP_PATH_PREFIX, sizeof(APP_PATH_PREFIX)-1) != 0)
+        return NULL;
+
+    char* p1 = rp + sizeof(APP_PATH_PREFIX)-1;
+    char* p2 = strchr(p1, '/');
+    if(!p2) return NULL;
+
+    //is normal app or jailbroken app/daemon?
+    if((p2 - p1) != (sizeof("xxxxxxxx-xxxx-xxxx-yxxx-xxxxxxxxxxxx")-1))
+        return NULL;
+	
+	*p2 = '\0';
+
+	return strdup(rp);
+}
+
+bool isJailbreakPath(const char* path)
+{
+    if(!path) return false;
+
+	struct statfs fs;
+	if(statfs(path, &fs)==0)
+	{
+		if(strcmp(fs.f_mntonname, "/private/var") != 0)
+			return false;
+	}
+
+	char* p1 = getAppUUIDOffset(path);
+	if(!p1) return true;
+
+	char* p2=NULL;
+	asprintf(&p2, "%s/_TrollStore", p1);
+
+	int trollapp = access(p2, F_OK);
+
+	free((void*)p1);
+	free((void*)p2);
+
+	if(trollapp==0) 
+		return true;
+
+    return false;
+}
+
+void redirectPathEnv(char* name, const char* path)
+{
+	char pathbuf[PATH_MAX]={0};
+	realpath(path, pathbuf);
+
+	if(strncmp(pathbuf,"/private/var",sizeof("/private/var")-1) != 0)
+		return;
+
+	char leter = pathbuf[sizeof("/private/var")-1];
+	if(leter=='\0' || leter=='/') {
+		setenv(name, JB_ROOT_PATH(path), 1);
+		if(strstr(gExecutablePath,"/shshd")) SYSLOG("redirectPathEnv %s : %s", name, JB_ROOT_PATH(pathbuf));
+	}
+}
+
+void redirectHomeDirectory()
+{
+	if(strstr(gExecutablePath,"/shshd")) SYSLOG("redirectHomeDirectory %s", gExecutablePath);
+
+	if(!isJailbreakPath(gExecutablePath))
+		return;
+	
+	char userdir[PATH_MAX]={0};
+
+	const char* HOME = getenv("HOME");
+	if(HOME) {
+		redirectPathEnv("HOME", HOME);
+	} else {
+		confstr(_CS_DARWIN_USER_DIR, userdir, sizeof(userdir));
+		redirectPathEnv("HOME", userdir);
+	}
+
+	const char* CFFIXED_USER_HOME = getenv("CFFIXED_USER_HOME");
+	if(CFFIXED_USER_HOME) redirectPathEnv("CFFIXED_USER_HOME", CFFIXED_USER_HOME);
+
+	const char* TMPDIR = getenv("TMPDIR");
+	if(TMPDIR) redirectPathEnv("TMPDIR", TMPDIR);
+
+	
+	if(strstr(gExecutablePath,"/shshd"))
+    for(char **p=environ; *p; p++) {
+ 		SYSLOG("env %s", *p);
+	} 
+}
+
+char HOOK_DYLIB_PATH[PATH_MAX] = {0}; //"/usr/lib/systemhook.dylib"
 __attribute__((constructor)) static void initializer(void)
 {
 	JB_SandboxExtensions = strdup(getenv("JB_SANDBOX_EXTENSIONS"));
@@ -447,6 +543,7 @@ __attribute__((constructor)) static void initializer(void)
 
 	unsandbox();
 	loadExecutablePath();
+	redirectHomeDirectory();
 
 	struct stat sb;
 	if(stat(gExecutablePath, &sb) == 0) {
@@ -465,9 +562,7 @@ __attribute__((constructor)) static void initializer(void)
 		|| strcmp(gExecutablePath, "/usr/libexec/lsd") == 0) {
 			int64_t debugErr = jbdswDebugMe();
 			if (debugErr == 0) {
-				//openlog("systemhook",LOG_PID,LOG_AUTH);syslog(LOG_DEBUG, "rootlesshooks coming...");closelog();
 				void* d = dlopen_hook(JB_ROOT_PATH("/basebin/rootlesshooks.dylib"), RTLD_NOW);
-				//openlog("systemhook",LOG_PID,LOG_AUTH);syslog(LOG_DEBUG, "rootlesshooks=%s=%p, %s", gExecutablePath, d, dlerror());closelog();
 			}
 		}
 		else if (strcmp(gExecutablePath, "/usr/libexec/watchdogd") == 0) {

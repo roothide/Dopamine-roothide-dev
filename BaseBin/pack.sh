@@ -96,7 +96,7 @@ cp "./watchdoghook/watchdoghook.dylib" ".tmp/basebin/watchdoghook.dylib"
 
 # rootlesshooks
 cd "rootlesshooks"
-make
+make clean && make
 cd -
 cp "./rootlesshooks/.theos/obj/rootlesshooks.dylib" ".tmp/basebin/rootlesshooks.dylib"
 
