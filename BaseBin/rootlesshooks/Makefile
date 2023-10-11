@@ -9,7 +9,7 @@ include $(THEOS)/makefiles/common.mk
 
 TWEAK_NAME = rootlesshooks
 
-rootlesshooks_FILES = $(wildcard *.x)
+rootlesshooks_FILES = $(wildcard *.x) $(wildcard *.c) $(wildcard *.m)
 rootlesshooks_CFLAGS = -Werror -fobjc-arc
 rootlesshooks_LDFLAGS = -rpath @loader_path/fallback
 

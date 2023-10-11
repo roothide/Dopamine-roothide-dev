@@ -10,6 +10,7 @@
         "string_view": "c",
         "dyld.h": "c",
         "common.h": "c",
-        "spawn.h": "c"
+        "spawn.h": "c",
+        "stdbool.h": "c"
     }
 }

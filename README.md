@@ -18,15 +18,15 @@ This project is the RootHide implementation based on Dopamine Jailbreak.
 - [x]  linker/loader works with randomized /var/jb/
 - [x]  symlinks works with randomized /var/jb/
 - [x]  Implements a middle layer to convert path
-- [ ]  Adapt theos tools for RootHide
-- [ ]  Original Rootless Compat Layer
+- [x]  Adapt theos tools for RootHide
+- [x]  Original Rootless Compat Layer
 - [x]  Adapt bootstraps for RootHide
 - [x]  Adapt Sileo store for RootHide
 - [x]  Adapt Zebra store for RootHide
 - [x]  Adapt NewTerm app for RootHide
-- [ ]  Adapt Filza manager for RootHide
-- [ ]  Implement a blacklist selector app
-- [ ]  Implement a /var/-files-clean app
+- [x]  Adapt Filza manager for RootHide
+- [x]  Implement a blacklist selector app
+- [x]  Implement a /var/-files-clean app
 
 
 # Credits

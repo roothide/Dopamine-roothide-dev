@@ -209,24 +209,28 @@ struct UpdateDownloadingView: View {
             throw "Could not find download URL for ipa"
         }
         
-        // Download the asset
-        try await withThrowingTaskGroup(of: Void.self) { group in
-            downloadProgress.totalUnitCount = 1
-            group.addTask {
-                let (url, _) = try await URLSession.shared.download(from: downloadURL, progress: downloadProgress)
-                if (isJailbroken()) {
-                    update(tipaURL: url)
-                } else {
-                    guard let dopamineUpdateURL = URL(string: "apple-magnifier://install?url=\(url.absoluteString)") else {
-                        return
-                    }
-                    await UIApplication.shared.open(dopamineUpdateURL)
-                    exit(0)
-                    return
-                }
-            }
-            try await group.waitForAll()
-        }
+//        // Download the asset
+//        try await withThrowingTaskGroup(of: Void.self) { group in
+//            downloadProgress.totalUnitCount = 1
+//            group.addTask {
+//                let (url, _) = try await URLSession.shared.download(from: downloadURL, progress: downloadProgress)
+//                if (isJailbroken()) {
+//                    update(tipaURL: url)
+//                } else {
+//                    guard let dopamineUpdateURL = URL(string: "apple-magnifier://install?url=\(url.absoluteString)") else {
+//                        return
+//                    }
+//                    await UIApplication.shared.open(dopamineUpdateURL)
+//                    exit(0)
+//                    return
+//                }
+//            }
+//            try await group.waitForAll()
+//        }
+        
+        await UIApplication.shared.open(downloadURL)
+        exit(0)
+        return
     }
 }
 

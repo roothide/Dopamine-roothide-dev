@@ -742,9 +742,12 @@ int main(int argc, char* argv[])
 
 			dispatch_async(dispatch_get_global_queue(DISPATCH_QUEUE_PRIORITY_DEFAULT, 0), ^{
 				JBLogDebug("launch daemons...");
-				//only bootstrap after launchdhook and systemhook available
-				spawn(jbrootPath(@"/usr/bin/launchctl"), @[@"bootstrap", @"system", @"/Library/LaunchDaemons"]);
-				JBLogDebug("launch daemons finished.");
+				if(access(jbrootPath(@"/basebin/.safe_mode").UTF8String, F_OK) != 0) 
+				{
+					//only bootstrap after launchdhook and systemhook available
+					spawn(jbrootPath(@"/usr/bin/launchctl"), @[@"bootstrap", @"system", @"/Library/LaunchDaemons"]);
+					JBLogDebug("launch daemons finished.");
+				}
 			});
 
 		}

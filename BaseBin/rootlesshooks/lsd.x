@@ -1,80 +1,6 @@
 #import <Foundation/Foundation.h>
-#include <sys/mount.h>
-
-#define APP_PATH_PREFIX "/private/var/containers/Bundle/Application/"
-
-char* getAppUUIDOffset(const char* path)
-{
-    if(!path) return NULL;
-
-    char rp[PATH_MAX];
-    if(!realpath(path, rp)) return NULL;
-
-    if(strncmp(rp, APP_PATH_PREFIX, sizeof(APP_PATH_PREFIX)-1) != 0)
-        return NULL;
-
-    char* p1 = rp + sizeof(APP_PATH_PREFIX)-1;
-    char* p2 = strchr(p1, '/');
-    if(!p2) return NULL;
-
-    //is normal app or jailbroken app/daemon?
-    if((p2 - p1) != (sizeof("xxxxxxxx-xxxx-xxxx-yxxx-xxxxxxxxxxxx")-1))
-        return NULL;
-	
-	*p2 = '\0';
-
-	return strdup(rp);
-}
-
-BOOL isJailbreakPath(const char* path)
-{
-    if(!path) return NO;
-
-	struct statfs fs;
-	if(statfs(path, &fs)==0)
-	{
-		if(strcmp(fs.f_mntonname, "/private/var") != 0)
-			return NO;
-	}
-
-	char* p1 = getAppUUIDOffset(path);
-	if(!p1) return YES; //reject by default
-
-	char* p2=NULL;
-	asprintf(&p2, "%s/_TrollStore", p1);
-
-	int trollapp = access(p2, F_OK);
-
-	free((void*)p1);
-	free((void*)p2);
-
-	if(trollapp==0) 
-		return YES;
-
-    return NO;
-}
-
-BOOL isNormalAppPath(const char* path)
-{
-    if(!path) return NO;
-    
-	char* p1 = getAppUUIDOffset(path);
-	if(!p1) return NO; //allow by default
-
-	char* p2=NULL;
-	asprintf(&p2, "%s/_TrollStore", p1);
-
-	int trollapp = access(p2, F_OK);
-
-	free((void*)p1);
-	free((void*)p2);
-
-	if(trollapp==0) return NO;
-
-    return YES;
-}
-
-int proc_pidpath(int pid, void * buffer, uint32_t  buffersize) __OSX_AVAILABLE_STARTING(__MAC_10_5, __IPHONE_2_0);
+#include "common.h"
+#include <roothide.h>
 
 %hook _LSCanOpenURLManager
 
@@ -186,8 +112,35 @@ int proc_pidpath(int pid, void * buffer, uint32_t  buffersize) __OSX_AVAILABLE_S
 
 %end
 
+
+//or -[Copier initWithSourceURL:uniqueIdentifier:destURL:callbackTarget:selector:options:] in transitd
+NSURL* (*orig_LSGetInboxURLForBundleIdentifier)(NSString* bundleIdentifier)=NULL;
+NSURL* new_LSGetInboxURLForBundleIdentifier(NSString* bundleIdentifier)
+{
+	NSURL* pathURL = orig_LSGetInboxURLForBundleIdentifier(bundleIdentifier);
+
+	if( ![bundleIdentifier hasPrefix:@"com.apple."] 
+			&& [pathURL.path hasPrefix:@"/var/mobile/Library/Application Support/Containers/"])
+	{
+		NSLog(@"redirect Inbox %@ : %@", bundleIdentifier, pathURL);
+		pathURL = [NSURL fileURLWithPath:jbroot(pathURL.path)];
+	}
+
+	return pathURL;
+}
+
+
 void lsdInit(void)
 {
 	NSLog(@"lsdInit...");
+
+	MSImageRef coreServicesImage = MSGetImageByName("/System/Library/Frameworks/CoreServices.framework/CoreServices");
+	void* _LSGetInboxURLForBundleIdentifier = MSFindSymbol(coreServicesImage, "__LSGetInboxURLForBundleIdentifier");
+	NSLog(@"coreServicesImage=%p, _LSGetInboxURLForBundleIdentifier=%p", coreServicesImage, _LSGetInboxURLForBundleIdentifier);
+	if(_LSGetInboxURLForBundleIdentifier)
+	{
+		MSHookFunction(_LSGetInboxURLForBundleIdentifier, (void *)&new_LSGetInboxURLForBundleIdentifier, (void **)&orig_LSGetInboxURLForBundleIdentifier);
+	}
+
 	%init();
 }

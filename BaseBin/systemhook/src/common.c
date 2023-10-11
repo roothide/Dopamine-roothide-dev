@@ -14,6 +14,7 @@
 int posix_spawnattr_getprocesstype_np(const posix_spawnattr_t * __restrict, int * __restrict) __API_AVAILABLE(macos(10.8), ios(6.0));
 
 char *JB_SandboxExtensions = NULL;
+char *JB_SandboxExtensions2 = NULL;
 char *JB_RootPath = NULL;
 
 char* JBRAND=NULL;
@@ -639,7 +640,15 @@ int spawn_hook_common(pid_t *restrict pid, const char *restrict path,
 				envbuf_setenv(&envc, "DYLD_INSERT_LIBRARIES", newLibraryInsert, 1);
 			}
 
-			envbuf_setenv(&envc, "JB_SANDBOX_EXTENSIONS", JB_SandboxExtensions, 1);
+			char* unsandbox = JB_SandboxExtensions;
+
+			struct statfs fs;
+			if (getpid()==1 && statfs(path, &fs)==0 && strcmp(fs.f_mntonname, "/private/var") != 0) 
+			{
+				unsandbox = JB_SandboxExtensions2; //only unsandbox jbroot:/var/ for system process
+			}
+
+			envbuf_setenv(&envc, "JB_SANDBOX_EXTENSIONS", unsandbox, 1);
 			envbuf_setenv(&envc, "JB_ROOT_PATH", JB_RootPath, 1);
 			
 			//allow to overwrite for testing

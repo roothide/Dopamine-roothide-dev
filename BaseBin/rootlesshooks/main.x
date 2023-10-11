@@ -28,4 +28,8 @@ NSString* getProcessName()
 		extern void lsdInit(void);
 		lsdInit();
 	}
+	else if ([processName isEqualToString:@"SpringBoard"]) {
+		extern void sbInit(void);
+		sbInit();
+	}
 }

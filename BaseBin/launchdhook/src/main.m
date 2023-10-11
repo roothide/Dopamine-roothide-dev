@@ -19,7 +19,7 @@ int gLaunchdImageIndex = -1;
 
 char HOOK_DYLIB_PATH[PATH_MAX] = {0}; //"/usr/lib/systemhook.dylib"
 
-NSString *generateSystemWideSandboxExtensions(void)
+NSString *generateSystemWideSandboxExtensions(BOOL ext)
 {
 	NSMutableString *extensionString = [NSMutableString new];
 
@@ -33,7 +33,8 @@ NSString *generateSystemWideSandboxExtensions(void)
 	[extensionString appendString:[NSString stringWithUTF8String:sandbox_extension_issue_file("com.apple.sandbox.executable", jbrootbase, 0)]];
 	[extensionString appendString:@"|"];
 
-	[extensionString appendString:[NSString stringWithUTF8String:sandbox_extension_issue_file("com.apple.app-sandbox.read", jbrootsecondary, 0)]];
+	char* class = ext ? "com.apple.app-sandbox.read-write" : "com.apple.app-sandbox.read";
+	[extensionString appendString:[NSString stringWithUTF8String:sandbox_extension_issue_file(class, jbrootsecondary, 0)]];
 	[extensionString appendString:@"|"];
 	[extensionString appendString:[NSString stringWithUTF8String:sandbox_extension_issue_file("com.apple.sandbox.executable", jbrootsecondary, 0)]];
 	[extensionString appendString:@"|"];
@@ -115,16 +116,18 @@ __attribute__((constructor)) static void initializer(void)
 	JBROOT = strdup(((NSString*)bootInfo_getObject(@"JBROOT")).UTF8String);
 
 	// System wide sandbox extensions and root path
-	setenv("JB_SANDBOX_EXTENSIONS", generateSystemWideSandboxExtensions().UTF8String, 1);
-	setenv("JB_ROOT_PATH", jbrootPath(@"/").fileSystemRepresentation, 1);
-	JB_SandboxExtensions = strdup(getenv("JB_SANDBOX_EXTENSIONS"));
-	JB_RootPath = strdup(getenv("JB_ROOT_PATH"));
+	JB_SandboxExtensions = strdup(generateSystemWideSandboxExtensions(NO).UTF8String);
+	JB_SandboxExtensions2 = strdup(generateSystemWideSandboxExtensions(YES).UTF8String);
+	JB_RootPath = strdup(JBROOT);
 
 	NSString* systemhookFilePath = [NSString stringWithFormat:@"%@/systemhook-%s.dylib", jbrootPath(@"/basebin/.fakelib"), JBRAND];
 	strncpy(HOOK_DYLIB_PATH, systemhookFilePath.fileSystemRepresentation, sizeof(HOOK_DYLIB_PATH));
 
-	int unsandbox(const char* dir, const char* file);
-	unsandbox("/usr/lib", systemhookFilePath.fileSystemRepresentation);
+	if(comingFromUserspaceReboot)
+	{
+		int unsandbox(const char* dir, const char* file);
+		unsandbox("/usr/lib", systemhookFilePath.fileSystemRepresentation);
+	}
 
 	proc_set_debugged_pid(getpid(), false);
 	initXPCHooks();
