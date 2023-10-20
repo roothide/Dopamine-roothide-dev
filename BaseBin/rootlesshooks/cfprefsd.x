@@ -77,6 +77,7 @@ void cfprefsdInit(void)
 	if(CFPrefsGetPathForTriplet_ptr)
 	{
 		MSHookFunction(CFPrefsGetPathForTriplet_ptr, (void *)&new_CFPrefsGetPathForTriplet, (void **)&orig_CFPrefsGetPathForTriplet);
+		NSLog(@"hook __CFPrefsGetPathForTriplet %p => %p : %p", CFPrefsGetPathForTriplet_ptr, new_CFPrefsGetPathForTriplet, orig_CFPrefsGetPathForTriplet);
 	}
 
 	%init();

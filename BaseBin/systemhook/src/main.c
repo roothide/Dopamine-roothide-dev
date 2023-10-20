@@ -399,6 +399,19 @@ bool shouldEnableTweaks(void)
 		}
 	}
 
+	const char *safeModeValue = getenv("_SafeMode");
+	const char *msSafeModeValue = getenv("_MSSafeMode");
+	if (safeModeValue) {
+		if (!strcmp(safeModeValue, "1")) {
+			return false;
+		}
+	}
+	if (msSafeModeValue) {
+		if (!strcmp(msSafeModeValue, "1")) {
+			return false;
+		}
+	}
+
 	const char *tweaksDisabledPathSuffixes[] = {
 		// System binaries
 		"/usr/libexec/xpcproxy",
@@ -473,7 +486,7 @@ __attribute__((constructor)) static void initializer(void)
 		else if (strcmp(gExecutablePath, "/usr/libexec/watchdogd") == 0) {
 			int64_t debugErr = jbdswDebugMe();
 			if (debugErr == 0) {
-				//dlopen_hook(JB_ROOT_PATH("/basebin/watchdoghook.dylib"), RTLD_NOW);
+				dlopen_hook(JB_ROOT_PATH("/basebin/watchdoghook.dylib"), RTLD_NOW);
 			}
 		}
 	}
@@ -498,8 +511,10 @@ __attribute__((constructor)) static void initializer(void)
 	//freeExecutablePath();
 	
 	//unset these to prevent from using by third-party
-	unsetenv("JBRAND");
-	unsetenv("JBROOT");
+	// unsetenv("JBRAND");
+	// unsetenv("JBROOT");
+	// some tweaks use NSTask to call command so that can't inject systemhook
+	// so we keep these to for now
 }
 
 

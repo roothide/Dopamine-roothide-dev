@@ -11,7 +11,7 @@ TWEAK_NAME = rootlesshooks
 
 rootlesshooks_FILES = $(wildcard *.x) $(wildcard *.c) $(wildcard *.m)
 rootlesshooks_CFLAGS = -Werror -fobjc-arc
-rootlesshooks_LDFLAGS = -rpath @loader_path/fallback
+rootlesshooks_LDFLAGS = -rpath @loader_path/.jbroot/Library/Frameworks -rpath @loader_path/fallback
 
 lsd.x_CFLAGS = -fno-objc-arc #lsd using mrc
 

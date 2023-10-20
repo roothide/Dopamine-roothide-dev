@@ -205,9 +205,7 @@ void dumpUserspacePanicLog(const char *message)
 	strftime(timestamp, sizeof(timestamp), "%Y-%m-%d_%H-%M-%S", tm);
 
 	char panicPath[PATH_MAX];
-	strcpy(panicPath, "/var/mobile/Library/Logs/CrashReporter/userspace-panic-");
-	strcat(panicPath, timestamp);
-	strcat(panicPath, ".ips");
+	snprintf(panicPath, sizeof(panicPath), "/var/mobile/Library/Logs/CrashReporter/userspace-panic-%s.%d.ips", timestamp, arc4random());
 
 	FILE * f = fopen(panicPath, "w");
 	if (f) {
@@ -739,16 +737,15 @@ int main(int argc, char* argv[])
 				JBLogError("error recovering PPL primitives: %d", err);
 			}
 
-
-			dispatch_async(dispatch_get_global_queue(DISPATCH_QUEUE_PRIORITY_DEFAULT, 0), ^{
+			//if(access(jbrootPath(@"/basebin/.safe_mode").UTF8String, F_OK) != 0)
+			{
 				JBLogDebug("launch daemons...");
-				if(access(jbrootPath(@"/basebin/.safe_mode").UTF8String, F_OK) != 0) 
-				{
+				dispatch_async(dispatch_get_global_queue(DISPATCH_QUEUE_PRIORITY_DEFAULT, 0), ^{
 					//only bootstrap after launchdhook and systemhook available
 					spawn(jbrootPath(@"/usr/bin/launchctl"), @[@"bootstrap", @"system", @"/Library/LaunchDaemons"]);
 					JBLogDebug("launch daemons finished.");
-				}
-			});
+				});
+			}
 
 		}
 

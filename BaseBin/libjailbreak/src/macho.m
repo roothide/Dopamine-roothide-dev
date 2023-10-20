@@ -189,12 +189,17 @@ void _machoEnumerateDependencies(FILE *machoFile, uint32_t archOffset, NSString 
 			fseek(machoFile, cmdOffset, SEEK_SET);
 			fread(&rpathCommand, sizeof(rpathCommand), 1, machoFile);
 
-			size_t stringLength = OSSwapLittleToHostInt32(rpathCommand.cmdsize) - sizeof(rpathCommand);
+			long stringLength = OSSwapLittleToHostInt32(rpathCommand.cmdsize) - sizeof(rpathCommand);
+
+			if(stringLength <= 0) return;
+
 			char* rpathC = malloc(stringLength);
 			fseek(machoFile, cmdOffset + OSSwapLittleToHostInt32(rpathCommand.path.offset), SEEK_SET);
 			fread(rpathC,stringLength,1,machoFile);
 			NSString *rpath = [NSString stringWithUTF8String:rpathC];
 			free(rpathC);
+
+			if(rpath.length <= 0) return;
 
 			[rpaths addObject:rpath];
 		}
@@ -207,12 +212,17 @@ void _machoEnumerateDependencies(FILE *machoFile, uint32_t archOffset, NSString 
 			struct dylib_command dylibCommand;
 			fseek(machoFile, cmdOffset, SEEK_SET);
 			fread(&dylibCommand,sizeof(dylibCommand),1,machoFile);
-			size_t stringLength = OSSwapLittleToHostInt32(dylibCommand.cmdsize) - sizeof(dylibCommand);
+			long stringLength = OSSwapLittleToHostInt32(dylibCommand.cmdsize) - sizeof(dylibCommand);
+
+			if(stringLength <=0) return;
+
 			char *imagePathC = malloc(stringLength);
 			fseek(machoFile, cmdOffset + OSSwapLittleToHostInt32(dylibCommand.dylib.name.offset), SEEK_SET);
 			fread(imagePathC, stringLength, 1, machoFile);
 			NSString *imagePath = [NSString stringWithUTF8String:imagePathC];
 			free(imagePathC);
+
+			if(imagePath.length <= 0) return;
 
 			if(_dyld_shared_cache_contains_path(imagePath.fileSystemRepresentation)) {
 				JBLogDebug("[_machoEnumerateDependencies] Skipped dependency %s, in dyld_shared_cache", imagePath.UTF8String);

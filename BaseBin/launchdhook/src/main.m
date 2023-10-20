@@ -120,13 +120,15 @@ __attribute__((constructor)) static void initializer(void)
 	JB_SandboxExtensions2 = strdup(generateSystemWideSandboxExtensions(YES).UTF8String);
 	JB_RootPath = strdup(JBROOT);
 
-	NSString* systemhookFilePath = [NSString stringWithFormat:@"%@/systemhook-%s.dylib", jbrootPath(@"/basebin/.fakelib"), JBRAND];
-	strncpy(HOOK_DYLIB_PATH, systemhookFilePath.fileSystemRepresentation, sizeof(HOOK_DYLIB_PATH));
-
 	if(comingFromUserspaceReboot)
 	{
+		NSString* systemhookFilePath = [NSString stringWithFormat:@"%@/systemhook-%s.dylib", jbrootPath(@"/basebin/.fakelib"), JBRAND];
+		
 		int unsandbox(const char* dir, const char* file);
 		unsandbox("/usr/lib", systemhookFilePath.fileSystemRepresentation);
+
+		//new "real path"
+		snprintf(HOOK_DYLIB_PATH, sizeof(HOOK_DYLIB_PATH), "/usr/lib/systemhook-%s.dylib", JBRAND);
 	}
 
 	proc_set_debugged_pid(getpid(), false);

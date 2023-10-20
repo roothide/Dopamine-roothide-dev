@@ -475,9 +475,6 @@ kBinaryConfig configForBinary(const char* path, char *const argv[restrict])
 			if (!strcmp(argv[1], "com.apple.ReportCrash")) { //main
 				return (kBinaryConfigDontInject | kBinaryConfigDontProcess);
 			}
-			if (!strcmp(argv[1], "com.apple.CrashReporter")) { //????
-				return (kBinaryConfigDontInject | kBinaryConfigDontProcess);
-			}
 			else if (!strcmp(argv[1], "com.apple.ReportMemoryException")) {
 				// Skip ReportMemoryException too as it might need to execute while jailbreakd is in a crashed state
 				return (kBinaryConfigDontInject | kBinaryConfigDontProcess);
@@ -504,6 +501,30 @@ kBinaryConfig configForBinary(const char* path, char *const argv[restrict])
 
 	return 0;
 }
+
+#define APP_PATH_PREFIX "/private/var/containers/Bundle/Application/"
+
+bool is_app_path(const char* path)
+{
+    if(!path) return false;
+
+    char rp[PATH_MAX];
+    if(!realpath(path, rp)) return false;
+
+    if(strncmp(rp, APP_PATH_PREFIX, sizeof(APP_PATH_PREFIX)-1) != 0)
+        return false;
+
+    char* p1 = rp + sizeof(APP_PATH_PREFIX)-1;
+    char* p2 = strchr(p1, '/');
+    if(!p2) return false;
+
+    //is normal app or jailbroken app/daemon?
+    if((p2 - p1) != (sizeof("xxxxxxxx-xxxx-xxxx-yxxx-xxxxxxxxxxxx")-1))
+        return false;
+
+	return true;
+}
+
 
 // Make sure the about to be spawned binary and all of it's dependencies are trust cached
 // Insert "DYLD_INSERT_LIBRARIES=/usr/lib/systemhook.dylib" into all binaries spawned
@@ -557,6 +578,9 @@ int spawn_hook_common(pid_t *restrict pid, const char *restrict path,
 		JBEnvAlreadyInsertedCount++;
 	}
 
+	struct statfs fs;
+	bool isPlatformProcess = statfs(path, &fs)==0 && strcmp(fs.f_mntonname, "/private/var") != 0;
+
 	// Check if we can find at least one reason to not insert jailbreak related environment variables
 	// In this case we also need to remove pre existing environment variables if they are already set
 	bool shouldInsertJBEnv = true;
@@ -567,20 +591,22 @@ int spawn_hook_common(pid_t *restrict pid, const char *restrict path,
 			break;
 		}
 
+		bool isAppPath = is_app_path(path);
+
 		// Check if we can find a _SafeMode or _MSSafeMode variable
 		// In this case we do not want to inject anything
 		const char *safeModeValue = envbuf_getenv((const char **)envp, "_SafeMode");
 		const char *msSafeModeValue = envbuf_getenv((const char **)envp, "_MSSafeMode");
 		if (safeModeValue) {
 			if (!strcmp(safeModeValue, "1")) {
-				shouldInsertJBEnv = false;
+				if(isPlatformProcess||isAppPath) shouldInsertJBEnv = false;
 				hasSafeModeVariable = true;
 				break;
 			}
 		}
 		if (msSafeModeValue) {
 			if (!strcmp(msSafeModeValue, "1")) {
-				shouldInsertJBEnv = false;
+				if(isPlatformProcess||isAppPath) shouldInsertJBEnv = false;
 				hasSafeModeVariable = true;
 				break;
 			}
@@ -620,7 +646,8 @@ int spawn_hook_common(pid_t *restrict pid, const char *restrict path,
 		}
 	}
 
-	if ((shouldInsertJBEnv && JBEnvAlreadyInsertedCount == JB_ENV_REQUIRED_COUNT) || (!shouldInsertJBEnv && JBEnvAlreadyInsertedCount == 0 && !hasSafeModeVariable)) {
+	if ((shouldInsertJBEnv && JBEnvAlreadyInsertedCount == JB_ENV_REQUIRED_COUNT)
+		 || (!shouldInsertJBEnv && JBEnvAlreadyInsertedCount == 0 && !hasSafeModeVariable)) {
 		// we already good, just call orig
 		return pspawn_orig(pid, path, file_actions, attrp, argv, envp);
 	}
@@ -641,9 +668,7 @@ int spawn_hook_common(pid_t *restrict pid, const char *restrict path,
 			}
 
 			char* unsandbox = JB_SandboxExtensions;
-
-			struct statfs fs;
-			if (getpid()==1 && statfs(path, &fs)==0 && strcmp(fs.f_mntonname, "/private/var") != 0) 
+			if (getpid()==1 && isPlatformProcess) 
 			{
 				unsandbox = JB_SandboxExtensions2; //only unsandbox jbroot:/var/ for system process
 			}

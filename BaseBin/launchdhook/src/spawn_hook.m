@@ -308,6 +308,7 @@ int	 reboot_hook(int how, int unk)
 
 	return reboot_orig(how, unk);
 }
+
 void (*launchdlogfunc_orig)(uint64_t a1, uint64_t a2, char *format, va_list aptr, uint64_t a5);
 void launchdlogfunc_hook(uint64_t a1, uint64_t a2, char *format, va_list aptr, uint64_t a5)
 {

@@ -29,6 +29,7 @@
 		@"apt-repo", 
 		@"cydia",
 		@"activator",
+		@"postbox",
 	];
 
 	if(xpc && isNormalAppPath(pathbuf))

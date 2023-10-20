@@ -156,6 +156,7 @@ func changeMobilePassword(newPassword: String) {
     guard let dashPath = rootifyPath(path: "/usr/bin/dash") else {
         return;
     }
+    //#printf "%s\n" "alpine" | @MEMO_PREFIX@@MEMO_SUB_PREFIX@/sbin/pw usermod root -h 0
     guard let pwPath = rootifyPath(path: "/usr/sbin/pw") else {
         return;
     }
