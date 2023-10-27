@@ -4,11 +4,10 @@
 #include <dlfcn.h>
 #include <sys/sysctl.h>
 #include <sys/stat.h>
+#include <paths.h>
 #include "sandbox.h"
 
 extern char**environ;
-
-extern bool swh_is_debugged;
 
 int ptrace(int request, pid_t pid, caddr_t addr, int data);
 #define PT_ATTACH       10      /* trace some running process */
@@ -175,10 +174,14 @@ int posix_spawnp_hook(pid_t *restrict pid, const char *restrict file,
 
 int execve_hook(const char *path, char *const argv[], char *const envp[])
 {
-	posix_spawnattr_t attr;
+	posix_spawnattr_t attr = NULL;
 	posix_spawnattr_init(&attr);
 	posix_spawnattr_setflags(&attr, POSIX_SPAWN_SETEXEC);
-	return posix_spawn_hook(NULL, path, NULL, &attr, argv, envp);
+	int result = posix_spawn_hook(NULL, path, NULL, &attr, argv, envp);
+	if (attr) {
+		posix_spawnattr_destroy(&attr);
+	}
+	return result;
 }
 
 int execle_hook(const char *path, const char *arg0, ... /*, (char *)0, char *const envp[] */)
@@ -270,18 +273,27 @@ int execv_hook(const char *path, char *const argv[])
 	return execve_hook(path, argv, environ);
 }
 
-int execvp_hook(const char *file, char *const argv[])
-{
-	return resolvePath(file, NULL, ^int(char *path) {
-		return execve_hook(path, argv, environ);
-	});
-}
-
 int execvP_hook(const char *file, const char *search_path, char *const argv[])
 {
-	return resolvePath(file, search_path, ^int(char *path) {
-		return execve_hook(path, argv, environ);
+	__block bool execve_failed = false;
+	int err = resolvePath(file, search_path, ^int(char *path) {
+		(void)execve_hook(path, argv, environ);
+		execve_failed = true;
+		return 0;
 	});
+	if (!execve_failed) {
+		errno = err;
+	}
+	return -1;
+}
+
+int execvp_hook(const char *name, char * const *argv)
+{
+	const char *path;
+	/* Get the path we're searching. */
+	if ((path = getenv("PATH")) == NULL)
+		path = _PATH_DEFPATH;
+	return execvP_hook(name, path, argv);
 }
 
 
@@ -384,6 +396,32 @@ int ptrace_hook(int request, pid_t pid, caddr_t addr, int data)
 	}
 
 	return retval;
+}
+
+void loadForkFix(void)
+{
+	if (swh_is_debugged) {
+		static dispatch_once_t onceToken;
+		dispatch_once (&onceToken, ^{
+			// Once this process has wx_allowed, we need to load forkfix to ensure forking will work
+			// Optimization: If the process cannot fork at all due to sandbox, we don't need to load forkfix
+			if (sandbox_check(getpid(), "process-fork", SANDBOX_CHECK_NO_REPORT, NULL) == 0) {
+				dlopen(JB_ROOT_PATH("/basebin/forkfix.dylib"), RTLD_NOW);
+			}
+		});
+	}
+}
+
+pid_t fork_hook(void)
+{
+	loadForkFix();
+	return fork();
+}
+
+pid_t vfork_hook(void)
+{
+	loadForkFix();
+	return vfork();
 }
 
 bool shouldEnableTweaks(void)
@@ -548,4 +586,6 @@ DYLD_INTERPOSE(sandbox_init_hook, sandbox_init)
 DYLD_INTERPOSE(sandbox_init_with_parameters_hook, sandbox_init_with_parameters)
 DYLD_INTERPOSE(sandbox_init_with_extensions_hook, sandbox_init_with_extensions)
 DYLD_INTERPOSE(ptrace_hook, ptrace)
+DYLD_INTERPOSE(fork_hook, fork)
+DYLD_INTERPOSE(vfork_hook, vfork)
 DYLD_INTERPOSE(reboot3_hook, reboot3)

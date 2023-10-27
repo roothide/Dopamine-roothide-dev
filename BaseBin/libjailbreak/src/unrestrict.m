@@ -97,6 +97,9 @@ int patch_proc_csflags(int pid)
 		uint32_t new_csflags = csflags | 4; //CS_GET_TASK_ALLOW
 		proc_set_csflags(proc, new_csflags);
 
+		// auto enable jit (suspend spawn)
+		proc_set_debugged(proc, false);
+
 		if (proc_needs_release) proc_rele(proc);
 	} else {
 		ret = -1;

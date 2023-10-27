@@ -39,7 +39,6 @@ typedef struct {
 } Fugu14KcallThread;
 
 static void* gThreadMapContext;
-static uint8_t* gThreadMapStart;
 static Fugu14KcallThread gFugu14KcallThread;
 KcallStatus gKCallStatus = kKcallStatusNotInitialized;
 
@@ -344,15 +343,6 @@ uint64_t initPACPrimitives(uint64_t kernelAllocation)
 		JBLogDebug("armstate.x[%d]=%llx",i,old_state.__x[i]);
 	}
 
-	// Map in previously allocated memory for stack (4 Pages)
-	gThreadMapContext = mapInVirtual(kernelAllocation, 4, &gThreadMapStart);
-	if (!gThreadMapContext)
-	{
-		JBLogError("ERROR: gThreadMapContext lookup failure");
-	}
-
-	memset(gThreadMapStart, 0, 0x4000*4);
-
 	// stack is at middle of allocation
 	uint64_t stack = kernelAllocation + 0x8000ULL;
 
@@ -391,7 +381,7 @@ uint64_t initPACPrimitives(uint64_t kernelAllocation)
 		JBLogDebug("actContext.x[%d]=%llx",i,value);
 	}
 
-	kRegisterState *mappedState = (kRegisterState*)((uintptr_t)gThreadMapStart + 0x8000ULL);
+	kRegisterState *mappedState = kvtouaddr(stack);
 
 	gFugu14KcallThread.thread              = thread;
 	gFugu14KcallThread.threadPtr           = threadPtr;
@@ -399,7 +389,7 @@ uint64_t initPACPrimitives(uint64_t kernelAllocation)
 	gFugu14KcallThread.scratchMemory       = stack + 0x7000ULL;
 	gFugu14KcallThread.mappedState         = mappedState;
 	gFugu14KcallThread.actContext          = actContext;
-	gFugu14KcallThread.scratchMemoryMapped = (uint64_t*) ((uintptr_t)gThreadMapStart + 0xF000ULL);
+	gFugu14KcallThread.scratchMemoryMapped = kvtouaddr(kernelAllocation + 0xF000ULL);
 
 	gKCallStatus = kKcallStatusPrepared;
 
@@ -417,12 +407,10 @@ void finalizePACPrimitives(void)
 
 	uint64_t actContext = gFugu14KcallThread.actContext;
 	thread_t thread = gFugu14KcallThread.thread;
+	kRegisterState *mappedState = gFugu14KcallThread.mappedState;
 
 	uint64_t threadPtr = gFugu14KcallThread.threadPtr;
 	JBLogDebug("thread context %llx %llx", kread64(threadPtr+0xa8), kread64(threadPtr+0xa8+8));
-
-
-	kRegisterState *mappedState = (kRegisterState*)((uintptr_t)gThreadMapStart + 0x8000ULL);
 
 	// Create a copy of signed state
 	kreadbuf(actContext, &gFugu14KcallThread.signedState, sizeof(kRegisterState));

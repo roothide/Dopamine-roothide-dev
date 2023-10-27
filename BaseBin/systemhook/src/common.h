@@ -12,6 +12,7 @@ extern char* JBROOT;
 extern char *JB_SandboxExtensions;
 extern char *JB_SandboxExtensions2;
 extern char *JB_RootPath;
+extern bool swh_is_debugged;
 #define JB_ROOT_PATH(path) ({ \
 	char *outPath = alloca(PATH_MAX); \
 	strlcpy(outPath, JB_RootPath, PATH_MAX); \

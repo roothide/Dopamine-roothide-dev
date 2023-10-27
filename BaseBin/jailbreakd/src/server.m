@@ -176,8 +176,7 @@ int launchdInitPPLRW(void)
 
 	int error = xpc_dictionary_get_int64(reply, "error");
 	if (error == 0) {
-		uint64_t magicPage = xpc_dictionary_get_uint64(reply, "magicPage");
-		initPPLPrimitives(magicPage);
+		initPPLPrimitives();
 		return 0;
 	}
 	else {
@@ -227,7 +226,7 @@ NSMutableDictionary* gSpawnExecPatchArray=nil;
 
 void spawnExecPatchTimer()
 {
-	@autoreleasepool {
+  @autoreleasepool {
 
 	for(NSNumber* processId in [gSpawnExecPatchArray copy]) {
 
@@ -259,7 +258,7 @@ void spawnExecPatchTimer()
 		gSpawnExecPatchTimerSuspend = YES;
 	}
 
-	}
+  }
 }
 void initSpawnExecPatch()
 {
@@ -420,10 +419,7 @@ void jailbreakd_received_message(mach_port_t machPort, bool systemwide)
 					
 					case JBD_MSG_PPL_INIT: {
 						if (gPPLRWStatus == kPPLRWStatusNotInitialized) {
-							uint64_t magicPage = xpc_dictionary_get_uint64(message, "magicPage");
-							if (magicPage) {
-								initPPLPrimitives(magicPage);
-							}
+							initPPLPrimitives();
 						}
 						break;
 					}
@@ -448,14 +444,8 @@ void jailbreakd_received_message(mach_port_t machPort, bool systemwide)
 					
 					case JBD_MSG_HANDOFF_PPL: {
 						if (gPPLRWStatus == kPPLRWStatusInitialized && gKCallStatus == kKcallStatusFinalized) {
-							uint64_t magicPage = 0;
-							int r = handoffPPLPrimitives(clientPid, &magicPage);
-							if (r == 0) {
-								xpc_dictionary_set_uint64(reply, "magicPage", magicPage);
-							}
-							else {
-								xpc_dictionary_set_uint64(reply, "errorCode", r);
-							}
+							int r = handoffPPLPrimitives(clientPid);
+							xpc_dictionary_set_uint64(reply, "errorCode", r);
 						}
 						else {
 							xpc_dictionary_set_uint64(reply, "error", JBD_ERR_PRIMITIVE_NOT_INITIALIZED);
@@ -538,32 +528,39 @@ void jailbreakd_received_message(mach_port_t machPort, bool systemwide)
 					}
 
 					case JBD_MSG_JBUPDATE: {
-						int64_t result = 0;
-						if (gPPLRWStatus == kPPLRWStatusInitialized && gKCallStatus == kKcallStatusFinalized) {
-							const char *basebinPath = xpc_dictionary_get_string(message, "basebinPath");
-							const char *tipaPath = xpc_dictionary_get_string(message, "tipaPath");
-							bool rebootWhenDone = xpc_dictionary_get_bool(message, "rebootWhenDone");
+						dispatch_async(dispatch_get_global_queue(DISPATCH_QUEUE_PRIORITY_HIGH, 0), ^{
+							
+							int64_t result = 0;
+							if (gPPLRWStatus == kPPLRWStatusInitialized && gKCallStatus == kKcallStatusFinalized) {
+								const char *basebinPath = xpc_dictionary_get_string(message, "basebinPath");
+								const char *tipaPath = xpc_dictionary_get_string(message, "tipaPath");
+								bool rebootWhenDone = xpc_dictionary_get_bool(message, "rebootWhenDone");
 
-							if (basebinPath) {
-								result = basebinUpdateFromTar([NSString stringWithUTF8String:basebinPath], false);
-							}
-							else if (tipaPath) {
-								result = jbUpdateFromTIPA([NSString stringWithUTF8String:tipaPath], false);
-							}
-							else {
-								result = 101;
-							}
+								if (basebinPath) {
+									result = basebinUpdateFromTar([NSString stringWithUTF8String:basebinPath], false);
+								}
+								else if (tipaPath) {
+									result = jbUpdateFromTIPA([NSString stringWithUTF8String:tipaPath], false);
+								}
+								else {
+									result = 101;
+								}
 
-							if (result==0) {
-								if(rebootWhenDone) {
-									safeRebootUserspace();
+								if (result==0) {
+									if(rebootWhenDone) {
+										safeRebootUserspace();
+									}
 								}
 							}
-						}
-						else {
-							result = JBD_ERR_PRIMITIVE_NOT_INITIALIZED;
-						}
-						xpc_dictionary_set_int64(reply, "result", result);
+							else {
+								result = JBD_ERR_PRIMITIVE_NOT_INITIALIZED;
+							}
+							xpc_dictionary_set_int64(reply, "result", result);
+							xpc_pipe_routine_reply(reply);
+
+						});
+						return;
+
 						break;
 					}
 
@@ -612,6 +609,7 @@ void jailbreakd_received_message(mach_port_t machPort, bool systemwide)
 						int64_t result = 0;
 						if (gPPLRWStatus == kPPLRWStatusInitialized && gKCallStatus == kKcallStatusFinalized) {
 							pid_t pid = xpc_dictionary_get_int64(message, "pid");
+							JBLogDebug("setting other process %s as debugged", proc_get_path(pid).UTF8String);
 							result = proc_set_debugged_pid(pid, true);
 						}
 						else {
@@ -658,6 +656,7 @@ void jailbreakd_received_message(mach_port_t machPort, bool systemwide)
 							safeRebootUserspace();
 						}
 						xpc_dictionary_set_int64(reply, "result", result);
+						break;
 					}
 
 					case JBD_SET_FAKELIB_VISIBLE: {
@@ -673,8 +672,6 @@ void jailbreakd_received_message(mach_port_t machPort, bool systemwide)
 						break;
 					}
 				}
-			} else {
-				xpc_dictionary_set_int64(reply, "result", -999999);
 			}
 		}
 		if (reply) {
@@ -705,7 +702,6 @@ int main(int argc, char* argv[])
 
 		gTCPages = [NSMutableArray new];
 		gTCUnusedAllocations = [NSMutableArray new];
-		gTCAccessQueue = dispatch_queue_create("com.opa334.jailbreakd.tcAccessQueue", DISPATCH_QUEUE_SERIAL);
 
 		mach_port_t machPort = 0;
 		kern_return_t kr = bootstrap_check_in(bootstrap_port, "com.opa334.jailbreakd", &machPort);

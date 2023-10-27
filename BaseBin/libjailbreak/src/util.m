@@ -111,9 +111,8 @@ uint64_t kpacda(uint64_t pointer, uint64_t modifier)
 
 uint64_t kptr_sign(uint64_t kaddr, uint64_t pointer, uint16_t salt)
 {
-	extern uint64_t xpaci(uint64_t a);
 	uint64_t modifier = (kaddr & 0xffffffffffff) | ((uint64_t)salt << 48);
-	return kpacda(xpaci(pointer), modifier);
+	return kpacda(unsign_kptr(pointer), modifier);
 }
 
 void kwrite_ptr(uint64_t kaddr, uint64_t pointer, uint16_t salt)
@@ -156,8 +155,7 @@ uint64_t proc_for_pid(pid_t pidToFind, bool *needsRelease)
 		foundProc = kcall(bootInfo_getSlidUInt64(@"proc_find"), 1, (uint64_t[]){pidToFind});
 		if (needsRelease) *needsRelease = foundProc != 0;
 	}
-	else 
-	{
+	else {
 		proc_iterate(^(uint64_t proc, BOOL* stop) {
 			pid_t pid = proc_get_pid(proc);
 			if(pid == pidToFind)
@@ -573,9 +571,14 @@ void pmap_set_type(uint64_t pmap_ptr, uint8_t type)
 	kwrite8(pmap_ptr + 0xC8 + el2_adjust, type);
 }
 
+uint64_t pmap_get_ttep(uint64_t pmap_ptr)
+{
+	return kread64(pmap_ptr + 0x8);
+}
+
 uint64_t pmap_lv2(uint64_t pmap_ptr, uint64_t virt)
 {
-	uint64_t ttep = kread64(pmap_ptr + 0x8);
+	uint64_t ttep = pmap_get_ttep(pmap_ptr);
 	
 	uint64_t table1Off   = (virt >> 36ULL) & 0x7ULL;
 	uint64_t table1Entry = physread64(ttep + (8ULL * table1Off));

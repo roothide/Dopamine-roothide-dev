@@ -12,7 +12,7 @@
 #include "vnode.h"
 
 #define LOG JBLogDebug
-extern uint64_t xpaci(uint64_t);
+extern uint64_t unsign_kptr(uint64_t);
 
 struct  namecache {
 	TAILQ_ENTRY(namecache)  nc_entry;       /* chain of all entries */
@@ -142,7 +142,7 @@ static void print_nc(uint64_t ncp)
 
 
 	struct vnode parentvnode;
-	uint64_t parentvp = xpaci((uint64_t)filevnode.v_parent);
+	uint64_t parentvp = unsign_kptr((uint64_t)filevnode.v_parent);
 	kreadbuf(parentvp, &parentvnode, sizeof(parentvnode));
 	kwrite32(parentvp+offsetof(struct vnode, v_usecount), parentvnode.v_usecount+1);
 

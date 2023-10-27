@@ -16,8 +16,7 @@ int launchdInitPPLRW(void)
 
 	int error = xpc_dictionary_get_int64(reply, "error");
 	if (error == 0) {
-		uint64_t magicPage = xpc_dictionary_get_uint64(reply, "magicPage");
-		initPPLPrimitives(magicPage);
+		initPPLPrimitives();
 		return 0;
 	}
 	else {
@@ -37,11 +36,8 @@ void getPrimitives(void)
 			JBLogDebug("receiveHandler: identifier=%s", identifier.UTF8String);
 			if ([identifier isEqualToString:@"receivePPLRW"])
 			{
-				uint64_t magicPage = [(NSNumber*)message[@"magicPage"] unsignedLongLongValue];
-				JBLogDebug("receiveHandler: magicPage=%llx", magicPage);
-				if (magicPage) {
-					initPPLPrimitives(magicPage);
-				}
+				JBLogDebug("receivePPLRW");
+				initPPLPrimitives();
 				dispatch_semaphore_signal(sema);
 			}
 		}
@@ -64,10 +60,9 @@ void sendPrimitives(void)
 		NSString *identifier = message[@"id"];
 		if (identifier) {
 			if ([identifier isEqualToString:@"getPPLRW"]) {
-				uint64_t magicPage = 0;
-				int ret = handoffPPLPrimitives(1, &magicPage);
-				JBLogDebug("handoffPPLPrimitives=%d", ret);
-				[gHandler sendMessage:@{@"id" : @"receivePPLRW", @"magicPage" : @(magicPage), @"errorCode" : @(ret), @"boomerangPid" : @(getpid())}];
+				int ret = handoffPPLPrimitives(1);
+				JBLogDebug("handoffPPLPrimitives=%d", ret);				
+				[gHandler sendMessage:@{@"id" : @"receivePPLRW", @"errorCode" : @(ret), @"boomerangPid" : @(getpid())}];
 			}
 			else if ([identifier isEqualToString:@"signThreadState"]) {
 				uint64_t actContextKptr = [(NSNumber*)message[@"actContext"] unsignedLongLongValue];
@@ -100,5 +95,6 @@ int unrestrict(pid_t pid, int (*callback)(pid_t pid), bool should_resume);
 	JBLogDebug("boomerang unrestrict=%d", ret);
 
 	sendPrimitives();
+	JBLogDebug("boomerang exit!");
 	return 0;
 }

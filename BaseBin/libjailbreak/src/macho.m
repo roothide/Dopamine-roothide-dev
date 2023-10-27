@@ -82,19 +82,19 @@ int64_t machoFindArch(FILE *machoFile, uint32_t subtypeToSearch)
 
 int64_t machoFindBestArch(FILE *machoFile)
 {
+	int64_t archOffsetCandidate = 0;
 #if __arm64e__
-	int64_t archOffsetCandidate = machoFindArch(machoFile, CPU_SUBTYPE_ARM64E|0x80000000);
+	archOffsetCandidate = machoFindArch(machoFile, CPU_SUBTYPE_ARM64E | 0x80000000); // arm64e new ABI
 	if (archOffsetCandidate < 0) {
-		archOffsetCandidate = machoFindArch(machoFile, CPU_SUBTYPE_ARM64E);
-	}
-	if (archOffsetCandidate < 0) {
-		archOffsetCandidate = machoFindArch(machoFile, CPU_SUBTYPE_ARM64_ALL);
-	}
-	return archOffsetCandidate;
-#else
-	int64_t archOffsetCandidate = machoFindArch(machoFile, CPU_SUBTYPE_ARM64_ALL);
-	return archOffsetCandidate;
+		archOffsetCandidate = machoFindArch(machoFile, CPU_SUBTYPE_ARM64E); // arm64e old ABI
+		if (archOffsetCandidate < 0) {
 #endif
+			archOffsetCandidate = machoFindArch(machoFile, CPU_SUBTYPE_ARM64_ALL);
+#if __arm64e__
+  		}
+	}
+#endif
+	return archOffsetCandidate;
 }
 
 void machoEnumerateLoadCommands(FILE *machoFile, uint32_t archOffset, void (^enumerateBlock)(struct load_command cmd, uint32_t cmdOffset))
@@ -208,7 +208,7 @@ void _machoEnumerateDependencies(FILE *machoFile, uint32_t archOffset, NSString 
 	// Second iteration: Find dependencies
 	machoEnumerateLoadCommands(machoFile, archOffset, ^(struct load_command cmd, uint32_t cmdOffset) {
 		uint32_t cmdId = OSSwapLittleToHostInt32(cmd.cmd);
-		if (cmdId == LC_LOAD_DYLIB || cmdId == LC_LOAD_WEAK_DYLIB || cmdId == LC_REEXPORT_DYLIB) {
+		if (cmdId == LC_LOAD_DYLIB || cmdId == LC_LOAD_WEAK_DYLIB || cmdId == LC_REEXPORT_DYLIB || cmdId == LC_LAZY_LOAD_DYLIB || cmdId == LC_LOAD_UPWARD_DYLIB) {
 			struct dylib_command dylibCommand;
 			fseek(machoFile, cmdOffset, SEEK_SET);
 			fread(&dylibCommand,sizeof(dylibCommand),1,machoFile);

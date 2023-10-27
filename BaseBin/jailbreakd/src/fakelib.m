@@ -102,6 +102,7 @@ int carbonCopy(NSString *sourcePath, NSString *targetPath)
 int setFakeLibVisible(bool visible)
 {
 	NSString* systemhookFilePath = [NSString stringWithFormat:@"%@/systemhook-%@.dylib", jbrootPath(@"/basebin/.fakelib"), bootInfo_getObject(@"JBRAND")];
+
 	bool isCurrentlyVisible = [[NSFileManager defaultManager] fileExistsAtPath:systemhookFilePath];
 	if (isCurrentlyVisible != visible) {
 		NSString *stockDyldPath = jbrootPath(@"/basebin/.dyld");

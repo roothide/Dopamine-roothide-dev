@@ -193,7 +193,52 @@ open class KernelPatchfinder {
         
         return gxf_ppl_enter_start
     }()
-    
+
+    /// Address of the `pmap_destroy` function
+    public lazy var pmap_destroy: UInt64? = {
+        guard let pmap_destroy_ppl = pplDispatchFunc(forOperation: 9) else {
+            return nil
+        }
+        
+        var candidate = textExec.findNextXref(to: pmap_destroy_ppl, optimization: .onlyBranches)
+        while candidate != nil {
+            // Rely on the fact pmap_destroy is the smallest function that calls pmap_destroy_ppl
+            for i in 1..<10 {
+                if AArch64Instr.isPacibsp(textExec.instruction(at: candidate! - UInt64(i * 4)) ?? 0) {
+                    return candidate! - UInt64(i * 4)
+                }
+            }
+            candidate = textExec.findNextXref(to: pmap_destroy_ppl, startAt: candidate! + 4, optimization: .onlyBranches)
+        }
+        
+        return nil
+    }()
+
+    /// Address of the `pmap_data_bootstrap` function
+    public lazy var pmap_data_bootstrap: UInt64? = {
+        guard let pmap_asid_plru_str = cStrSect.addrOf("pmap_asid_plru") else {
+            return nil
+        }
+
+        guard let pmap_bootstrap_mid = textExec.findNextXref(to: pmap_asid_plru_str, optimization: .noBranches) else {
+            return nil
+        }
+
+        var bli: UInt64 = 0
+        var pc = pmap_bootstrap_mid
+        for i in 1..<30 {
+            let target = AArch64Instr.Emulate.bl(textExec.instruction(at: pc) ?? 0, pc: pc)
+            if target != nil {
+                bli += 1
+                if bli == 2 {
+                    return target
+                }
+            }
+        }
+
+        return nil
+    }()
+
     /// Address of the `pmap_enter_options_addr` function
     public lazy var pmap_enter_options_addr: UInt64? = {
         guard let pmap_enter_options_ppl = pplDispatchFunc(forOperation: 0xA) else {
@@ -815,11 +860,11 @@ open class KernelPatchfinder {
             return nil
         }
 
-        guard let ref: UInt64? = textExec.findNextXref(to: panic_str, startAt:nil, optimization: .noBranches) else {
+        guard let ref: UInt64 = textExec.findNextXref(to: panic_str, startAt:nil, optimization: .noBranches) else {
             return nil
         }
 
-        var mount_common = ref!
+        var mount_common = ref
         while !AArch64Instr.isPacibsp(textExec.instruction(at: mount_common) ?? 0) {
             mount_common -= 4
         }
@@ -945,11 +990,11 @@ open class KernelPatchfinder {
             return nil
         }
 
-        guard let ref: UInt64? = textExec.findNextXref(to: entitlement_str, startAt:nil, optimization: .noBranches) else {
+        guard let ref: UInt64 = textExec.findNextXref(to: entitlement_str, startAt:nil, optimization: .noBranches) else {
             return nil
         }
 
-        var funcStart = ref!
+        var funcStart = ref
         while !AArch64Instr.isPacibsp(textExec.instruction(at: funcStart) ?? 0) {
             funcStart -= 4
         }
@@ -1048,6 +1093,157 @@ open class KernelPatchfinder {
         }
         
         return pmap_image4_trust_caches
+    }()
+
+    // Offset of arm_vm_init function
+    public lazy var arm_vm_init: UInt64? = {
+        guard let hint_str = cStrSect.addrOf("use_contiguous_hint") else {
+            return nil
+        }
+
+        guard let arm_vm_init_mid: UInt64 = textExec.findNextXref(to: hint_str, startAt:nil, optimization: .noBranches) else {
+            return nil
+        }
+
+        var arm_vm_init = arm_vm_init_mid
+        while !AArch64Instr.isPacibsp(textExec.instruction(at: arm_vm_init) ?? 0, alsoAllowNop: false) {
+            arm_vm_init -= 4
+        }
+
+        return arm_vm_init
+    }()
+
+    // Offset of `gVirtBase` global variable
+    public lazy var gVirtBase: UInt64? = {
+        guard let arm_vm_init_ = arm_vm_init else {
+            return nil
+        }
+
+        var gVirtBase: UInt64? = nil
+        var matches = 0
+        for i in 1..<50 {
+            let pc = arm_vm_init_ + UInt64(i * 4)
+
+            guard let strArgs = AArch64Instr.Args.str(textExec.instruction(at: pc) ?? 0) else {
+                continue
+            }
+
+            matches += 1
+            if matches == 1 {
+                for k in 1..<10 {
+                    let pc2 = pc - UInt64(k * 4)
+                    guard let page = AArch64Instr.Emulate.adrp(textExec.instruction(at: pc2) ?? 0, pc: pc2) else {
+                        continue
+                    }
+                    gVirtBase = page + UInt64(strArgs.imm)
+                    break
+                }
+                break
+            }
+        }
+        return gVirtBase
+    }()
+
+    // Offset of `gPhysBase` global variable
+    public lazy var gPhysBase: UInt64? = {
+        guard let arm_vm_init_ = arm_vm_init else {
+            return nil
+        }
+
+        var gPhysBase: UInt64? = nil
+        var matches = 0
+        for i in 1..<50 {
+            let pc = arm_vm_init_ + UInt64(i * 4)
+
+            guard let strArgs = AArch64Instr.Args.str(textExec.instruction(at: pc) ?? 0) else {
+                continue
+            }
+
+            matches += 1
+            if matches == 2 {
+                for k in 1..<10 {
+                    let pc2 = pc - UInt64(k * 4)
+                    guard let page = AArch64Instr.Emulate.adrp(textExec.instruction(at: pc2) ?? 0, pc: pc2) else {
+                        continue
+                    }
+                    gPhysBase = page + UInt64(strArgs.imm)
+                    break
+                }
+                break
+            }
+        }
+        return gPhysBase
+    }()
+
+    // Offset of `gPhysSize` global variable
+    public lazy var gPhysSize: UInt64? = {
+        guard let arm_vm_init_ = arm_vm_init else {
+            return nil
+        }
+
+        var gPhysSize: UInt64? = nil
+        var matches = 0
+        for i in 1..<50 {
+            let pc = arm_vm_init_ + UInt64(i * 4)
+
+            guard let strArgs = AArch64Instr.Args.str(textExec.instruction(at: pc) ?? 0) else {
+                continue
+            }
+
+            matches += 1
+            if matches == 5 {
+                for k in 1..<10 {
+                    let pc2 = pc - UInt64(k * 4)
+                    guard let page = AArch64Instr.Emulate.adrp(textExec.instruction(at: pc2) ?? 0, pc: pc2) else {
+                        continue
+                    }
+                    gPhysSize = page + UInt64(strArgs.imm)
+                    break
+                }
+                break
+            }
+        }
+        return gPhysSize
+    }()
+
+    // Offset of `ptov_table` global variable
+    public lazy var ptov_table: UInt64? = {
+        guard let arm_vm_init_ = arm_vm_init else {
+            return nil
+        }
+
+        // First call in arm_vm_init is phystokv
+        var phystokv: UInt64? = nil
+        var k = 0
+        while phystokv == nil {
+            let pc = arm_vm_init_ + UInt64(k * 4)
+            phystokv = AArch64Instr.Emulate.bl(textExec.instruction(at: pc) ?? 0, pc: pc)
+            k += 1
+        }
+
+        // Second (adrp, ldr) in phystokv is ptov_table
+        var ptov_table: UInt64? = nil
+        var matches = 0
+        for i in 1..<50 {
+            let ldrPc = phystokv! + UInt64(i * 4)
+
+            guard let ldrArgs = AArch64Instr.Args.ldr(textExec.instruction(at: ldrPc) ?? 0) else {
+                continue
+            }
+
+            let adrpPc = ldrPc - 4
+            guard let page = AArch64Instr.Emulate.adrp(textExec.instruction(at: adrpPc) ?? 0, pc: adrpPc) else {
+                continue
+            }
+
+            matches += 1
+            if matches == 2 {
+                ptov_table = page + UInt64(ldrArgs.imm)
+                break
+            }
+        }
+
+        return ptov_table
     }()
     
     /// Get the EL level the kernel runs at

@@ -57,8 +57,11 @@ void patchBaseBinLaunchDaemonPlist(NSString *plistPath)
 	if (plistDict) {
 		NSMutableArray *programArguments = ((NSArray *)plistDict[@"ProgramArguments"]).mutableCopy;
 		if (programArguments.count >= 1) {
-			plistDict[@"Program"] = [jbrootPath(@"/basebin") stringByAppendingPathComponent:programArguments[0]];
-			[plistDict writeToFile:plistPath atomically:YES];
+			NSString *pathBefore = programArguments[0];
+			if (![pathBefore hasPrefix:@"/"]) {
+				plistDict[@"Program"] = jbrootPath(pathBefore);
+				[plistDict writeToFile:plistPath atomically:YES];
+			}
 		}
 	}
 }

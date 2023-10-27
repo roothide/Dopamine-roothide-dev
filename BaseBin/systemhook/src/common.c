@@ -40,7 +40,8 @@ extern char HOOK_DYLIB_PATH[];
 #define POSIX_SPAWNATTR_OFF_MEMLIMIT_ACTIVE 0x48
 #define POSIX_SPAWNATTR_OFF_MEMLIMIT_INACTIVE 0x4C
 
-bool swh_is_debugged = false;
+// jit auto enabled (suspend spawn)
+bool swh_is_debugged = true;
 
 bool stringStartsWith(const char *str, const char* prefix)
 {
@@ -72,14 +73,6 @@ bool stringEndsWith(const char* str, const char* suffix)
 	}
 
 	return !strcmp(str + str_len - suffix_len, suffix);
-}
-
-void loadForkFix(void)
-{
-	static dispatch_once_t onceToken;
-	dispatch_once (&onceToken, ^{
-		dlopen(JB_ROOT_PATH("/basebin/forkfix.dylib"), RTLD_NOW);
-	});
 }
 
 extern char **environ;
@@ -225,11 +218,6 @@ int64_t jbdswDebugMe(void)
 	}
 	if (result == 0) {
 		swh_is_debugged = true;
-		// Once this process has wx_allowed, we need to load forkfix to ensure forking will work
-		// Optimization: If the process cannot fork at all due to sandbox, we don't need to load forkfix
-		if (sandbox_check(getpid(), "process-fork", SANDBOX_CHECK_NO_REPORT, NULL) == 0) {
-			loadForkFix();
-		}
 	} 
 	return result;
 }
@@ -350,10 +338,13 @@ int resolvePath(const char *file, const char *searchPath, int (^attemptHandler)(
 	struct stat sb;
 	char path_buf[PATH_MAX];
 
-	if(searchPath)
-		env_path = searchPath;
-	else if ((env_path = getenv("PATH")) == NULL)
-		env_path = _PATH_DEFPATH;
+	env_path = searchPath;
+	if (!env_path) {
+		env_path = getenv("PATH");
+		if (!env_path) {
+			env_path = _PATH_DEFPATH;
+		}
+	}
 
 	/* If it's an absolute or relative path name, it's easy. */
 	if (index(file, '/')) {
@@ -526,8 +517,8 @@ bool is_app_path(const char* path)
 }
 
 
-// Make sure the about to be spawned binary and all of it's dependencies are trust cached
-// Insert "DYLD_INSERT_LIBRARIES=/usr/lib/systemhook.dylib" into all binaries spawned
+// 1. Make sure the about to be spawned binary and all of it's dependencies are trust cached
+// 2. Insert "DYLD_INSERT_LIBRARIES=/usr/lib/systemhook.dylib" into all binaries spawned
 
 int spawn_hook_common(pid_t *restrict pid, const char *restrict path,
 					   const posix_spawn_file_actions_t *restrict file_actions,

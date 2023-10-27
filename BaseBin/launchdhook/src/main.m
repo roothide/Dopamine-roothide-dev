@@ -75,10 +75,9 @@ __attribute__((constructor)) static void initializer(void)
 				JBLogDebug("receiveHandler: identifier=%s", identifier.UTF8String);
 				if ([identifier isEqualToString:@"receivePPLRW"])
 				{
-					uint64_t magicPage = [(NSNumber*)message[@"magicPage"] unsignedLongLongValue];
 					boomerangPid = [(NSNumber*)message[@"boomerangPid"] intValue];
-					JBLogDebug("receiveHandler: magicPage=%llx, boomerangPid=%d", magicPage, boomerangPid);
-					initPPLPrimitives(magicPage);
+					JBLogDebug("receiveHandler: boomerangPid=%d", boomerangPid);
+					initPPLPrimitives();
 					dispatch_semaphore_signal(sema);
 				}
 			}

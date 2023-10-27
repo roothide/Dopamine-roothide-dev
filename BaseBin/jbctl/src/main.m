@@ -56,6 +56,7 @@ int main(int argc, char* argv[])
 		}
 		if (result == 0) {
 			printf("Update applied, userspace rebooting to finalize it...\n");
+			fflush(stdout);
 			sleep(2);
 			//return reboot3(RB2_USERREBOOT);
 			return jbdRebootUserspace();

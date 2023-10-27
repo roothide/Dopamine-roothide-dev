@@ -105,7 +105,8 @@ int basebinUpdateFromTar(NSString *basebinPath, bool rebootWhenDone)
 		if (executablePath) {
 			int prepRet = spawn(executablePath, @[@"prepare_jbupdate"]);
 			if (prepRet != 0) {
-				NSLog(@"WARNING: jbupdate preparation failed");
+				JBLogDebug("WARNING: jbupdate preparation failed");
+				return 100;
 			}
 		}
 	}

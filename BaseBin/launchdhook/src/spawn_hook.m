@@ -290,18 +290,19 @@ int	 __reboot(int how, int unk);
 int	 (*reboot_orig)(int how, int unk);
 int	 reboot_hook(int how, int unk)
 {
-	JBLogDebug("reboot...%d,%d", how, unk);
-
-	logproclist();
-
-    NSArray *csss = [NSThread callStackSymbols];
-    JBLogDebug("callstack=\n%s\n", [NSString stringWithFormat:@"%@", csss].UTF8String);
-
+	JBLogDebug("reboot...%d, %d", how, unk);
+	
 	sync();
 
-	sleep(1);
-
 	if(how==0 && unk==0) {
+
+		logproclist();
+
+		NSArray *csss = [NSThread callStackSymbols];
+		JBLogDebug("callstack=\n%s\n", [NSString stringWithFormat:@"%@", csss].UTF8String);
+
+		sync(); sleep(1);
+
 		//make a panic log
 		return syscall(SYS_reboot, RB_PANIC|RB_QUICK, "launchd force reboot");
 	}
