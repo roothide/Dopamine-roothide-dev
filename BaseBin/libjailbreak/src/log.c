@@ -74,12 +74,13 @@ void JBDLogV(const char* prefix, const char *format, va_list va)
 	}
 }
 
+bool jblogenable = false;
+
 void JBLogDebug(const char *format, ...)
 {
-	static bool jblogenable = false;
 	static dispatch_once_t onceToken;
 	dispatch_once (&onceToken, ^{
-		jblogenable = access(LOGGING_PATH "/.jblogenable",F_OK)==0;
+		if(access(LOGGING_PATH "/.jblogenable",F_OK)==0) jblogenable=true;
 	});
 
 	if(!jblogenable) return;
@@ -93,10 +94,9 @@ void JBLogDebug(const char *format, ...)
 
 void JBLogError(const char *format, ...)
 {
-	static bool jblogenable = false;
 	static dispatch_once_t onceToken;
 	dispatch_once (&onceToken, ^{
-		jblogenable = access(LOGGING_PATH "/.jblogenable",F_OK)==0;
+		if(access(LOGGING_PATH "/.jblogenable",F_OK)==0) jblogenable=true;
 	});
 
 	if(!jblogenable) return;

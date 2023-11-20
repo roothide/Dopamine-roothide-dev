@@ -403,7 +403,7 @@ uint64_t task_get_first_thread(uint64_t task_ptr)
 
 uint64_t thread_get_act_context(uint64_t thread_ptr)
 {
-	uint64_t actContextOffset = bootInfo_getUInt64(@"ACT_CONTEXT");
+	uint64_t actContextOffset = bootInfo_getUInt64(@"ACT_CONTEXT"); //actually this is upcb offset (but upcb=contextData for user thread
 	return kread_ptr(thread_ptr + actContextOffset);
 }
 

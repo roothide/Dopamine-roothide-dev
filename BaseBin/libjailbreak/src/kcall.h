@@ -17,7 +17,15 @@ typedef struct {
 	uint32_t cpsr;
 	// Other stuff
 	uint64_t other[70];
-} kRegisterState;
+} kRegisterState; //size=0x348, but ARM_CONTEXT_SIZE=0x350
+
+struct arm_kernel_saved_state {
+	uint64_t x[10];     /* General purpose registers x19-x28 */
+	uint64_t fp;        /* Frame pointer x29 */
+	uint64_t lr;        /* Link register x30 */  // RETAA via cswitch_epilogue
+	uint64_t sp;        /* Stack pointer x31 */  // important!
+	uint64_t pc;        /* Program counter */  // always zero
+} __attribute__((aligned(16)));
 
 extern KcallStatus gKCallStatus;
 

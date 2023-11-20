@@ -1,16 +1,18 @@
 {
     "files.associations": {
-        "dlfcn.h": "c",
-        "filesystem": "c",
-        "random": "c",
-        "syslog.h": "c",
-        "__locale": "c",
-        "__string": "c",
-        "string": "c",
-        "string_view": "c",
         "dyld.h": "c",
-        "common.h": "c",
-        "spawn.h": "c",
-        "stdbool.h": "c"
+        "termios.h": "c",
+        "_pid_t.h": "c",
+        "_types.h": "c",
+        "cdefs.h": "c",
+        "util.h": "c",
+        "filesystem": "c",
+        "chrono": "c",
+        "driverkit.h": "c",
+        "mach.h": "c",
+        "syslog.h": "c",
+        "stdbool.h": "c",
+        "device.h": "c",
+        "includeme.h": "c"
     }
 }
