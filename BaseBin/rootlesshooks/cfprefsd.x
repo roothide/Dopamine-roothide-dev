@@ -59,9 +59,12 @@ BOOL new_CFPrefsGetPathForTriplet(CFStringRef bundleIdentifier, CFStringRef user
 		BOOL needsRedirection = preferencePlistNeedsRedirection(origPath);
 		if (needsRedirection) {
 			NSLog(@"Plist redirected to jbroot: %@", origPath);
-			strcpy((char*)buffer, jbroot("/"));
-			strcat((char*)buffer, origPath.UTF8String);
-			NSLog(@"CFPrefsGetPathForTriplet redirect to %s", buffer);
+			const char* newpath = jbroot(origPath.UTF8String);
+			//buffer size=1024 in CFXPreferences_fileProtectionClassForIdentifier_user_host_container___block_invoke
+			if(strlen(newpath) < 1024) {
+				strcpy((char*)buffer, newpath);
+				NSLog(@"CFPrefsGetPathForTriplet redirect to %s", buffer);
+			}
 		}
 	}
 

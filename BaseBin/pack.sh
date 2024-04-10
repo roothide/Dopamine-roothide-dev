@@ -21,6 +21,12 @@ if [ -d ".tmp/basebin" ]; then
 fi
 mkdir -p ".tmp/basebin"
 
+cd ChOma
+make TARGET=ios DISABLE_SIGNING=1 DISABLE_TESTS=1 DYLIB_LDFLAGS="-install_name @loader_path/libchoma.dylib"
+cd -
+cp ./ChOma/output/ios/lib/libchoma.dylib .tmp/basebin/libchoma.dylib
+cp -r ./ChOma/output/ios/include/choma ./_shared/choma
+
 # libfilecom
 cd "libfilecom"
 make
@@ -105,7 +111,6 @@ cd "forkfix"
 make
 cd -
 cp "./forkfix/forkfix.dylib" ".tmp/basebin/forkfix.dylib"
-
 
 # external
 cp -r ./_external/* .tmp/basebin/

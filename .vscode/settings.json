@@ -13,6 +13,10 @@
         "syslog.h": "c",
         "stdbool.h": "c",
         "device.h": "c",
-        "includeme.h": "c"
+        "includeme.h": "c",
+        "paths.h": "c",
+        "common.h": "c",
+        "__config": "c",
+        "_pthread_types.h": "c"
     }
 }

@@ -18,6 +18,7 @@
 #import "fakelib.h"
 #import "update.h"
 #import "forkfix.h"
+#include <libgen.h>
 
 kern_return_t bootstrap_check_in(mach_port_t bootstrap_port, const char *service, mach_port_t *server_port);
 SInt32 CFUserNotificationDisplayAlert(CFTimeInterval timeout, CFOptionFlags flags, CFURLRef iconURL, CFURLRef soundURL, CFURLRef localizationURL, CFStringRef alertHeader, CFStringRef alertMessage, CFStringRef defaultButtonTitle, CFStringRef alternateButtonTitle, CFStringRef otherButtonTitle, CFOptionFlags *responseFlags) API_AVAILABLE(ios(3.0));
@@ -44,32 +45,34 @@ void setTweaksEnabled(bool enabled)
 	}
 }
 
-
-void ensure_jbroot_symlink(const char* dirpath)
+void ensure_jbroot_symlink(const char* filepath)
 {
-	JBLogDebug("ensure_jbroot_symlink: %s", dirpath);
+	JBLogDebug("ensure_jbroot_symlink: %s", filepath);
 
-	if(access(dirpath, F_OK) !=0 )
+	if(access(filepath, F_OK) !=0 )
 		return;
 
+	char realfpath[PATH_MAX];
+	assert(realpath(filepath, realfpath) != NULL);
+
 	char realdirpath[PATH_MAX];
-	assert(realpath(dirpath, realdirpath) != NULL);
+	dirname_r(realfpath, realdirpath);
 	if(realdirpath[strlen(realdirpath)] != '/') strcat(realdirpath, "/");
 
 	char jbrootpath[PATH_MAX];
-	char jbrootpath2[PATH_MAX];
-	snprintf(jbrootpath, sizeof(jbrootpath), "/private/var/containers/Bundle/Application/.jbroot-%s/", getenv("JBRAND"));
-	snprintf(jbrootpath2, sizeof(jbrootpath2), "/private/var/mobile/Containers/Shared/AppGroup/.jbroot-%s/", getenv("JBRAND"));
+	assert(realpath(getenv("JBROOT"), jbrootpath) != NULL);
+	if(jbrootpath[strlen(jbrootpath)] != '/') strcat(jbrootpath, "/");
 
-	if(strncmp(realdirpath, jbrootpath, strlen(jbrootpath)) != 0
-		&& strncmp(realdirpath, jbrootpath2, strlen(jbrootpath2)) != 0 )
+	JBLogDebug("%s : %s", realdirpath, jbrootpath);
+
+	if(strncmp(realdirpath, jbrootpath, strlen(jbrootpath)) != 0) 
 		return;
 
 	struct stat jbrootst;
 	assert(stat(jbrootpath, &jbrootst) == 0);
 	
 	char sympath[PATH_MAX];
-	snprintf(sympath,sizeof(sympath),"%s/.jbroot", dirpath);
+	snprintf(sympath,sizeof(sympath),"%s/.jbroot", realdirpath);
 
 	struct stat symst;
 	if(lstat(sympath, &symst)==0)
@@ -97,6 +100,8 @@ void ensure_jbroot_symlink(const char* dirpath)
 		JBLogError("symlink error @ %s\n", sympath);
 	}
 }
+
+int ensure_randomized_cdhash(const char* inputPath, void* cdhashOut);
 
 int processBinary(int pid, NSString *binaryPath)
 {
@@ -131,11 +136,14 @@ int processBinary(int pid, NSString *binaryPath)
 						evaluateSignature(dependencyURL, &cdHash, &isAdhocSigned);
 						if (isAdhocSigned) {
 							if (!isCdHashInTrustCache(cdHash)) {
-								[nonTrustCachedCDHashes addObject:cdHash];
+								uint8_t newCDHash[CS_CDHASH_LEN]={0};
+								if(ensure_randomized_cdhash(dependencyPath.fileSystemRepresentation, newCDHash)==0) {
+									[nonTrustCachedCDHashes addObject:[NSData dataWithBytes:newCDHash length:CS_CDHASH_LEN]];
+								}
 							}
 						}
 
-						ensure_jbroot_symlink([dependencyPath stringByDeletingLastPathComponent].UTF8String);
+						ensure_jbroot_symlink(dependencyPath.fileSystemRepresentation);
 					}
 				};
 

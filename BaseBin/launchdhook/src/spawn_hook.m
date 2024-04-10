@@ -3,6 +3,7 @@
 #import <libjailbreak/log.h>
 #import <libjailbreak/libjailbreak.h>
 #import "../systemhook/src/common.h"
+#import "../systemhook/src/envbuf.h"
 #import "boomerang.h"
 #import "substrate.h"
 #include "crashreporter.h"
@@ -184,7 +185,18 @@ int posix_spawn_hook(pid_t *restrict pidp, const char *restrict path,
 
 	if(appIdentifier && roothideBlacklistedApp(appIdentifier)) {
 		JBLogDebug("roothideBlacklistedApp:%s, %s", appIdentifier.UTF8String, path);
-		return posix_spawn_orig_wrapper(pidp, path, file_actions, attrp, argv, envp);
+
+		char **envc = envbuf_mutcopy((const char **)envp);
+
+		//choicy may set these 
+		envbuf_unsetenv(&envc, "_SafeMode");
+		envbuf_unsetenv(&envc, "_MSSafeMode");
+
+		int ret = posix_spawn_orig_wrapper(pidp, path, file_actions, attrp, argv, envc);
+
+		envbuf_free(envc);
+
+		return ret;
 	}
 
 	posix_spawnattr_t attr=NULL;

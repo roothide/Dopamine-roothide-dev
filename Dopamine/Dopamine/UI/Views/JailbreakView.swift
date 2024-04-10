@@ -7,6 +7,7 @@
 
 import SwiftUI
 import Fugu15KernelExploit
+import CBindings
 
 #if os(iOS)
 import UIKit
@@ -110,6 +111,10 @@ struct JailbreakView: View {
                         updateButton
                         if !isJailbreaking {
                             Spacer()
+                            
+                            Text("RootHide Dopamine  \(Bundle.main.infoDictionary?["CFBundleShortVersionString"] as? String ?? "Unknown")")
+                                .foregroundColor(.white)
+                                .opacity(0.3)
                         }
                     }
                     .frame(maxWidth: .infinity, maxHeight: .infinity)
@@ -454,7 +459,7 @@ struct JailbreakView: View {
     func uiJailbreak() {
         jailbreakingProgress = .jailbreaking
         let dpDefaults = dopamineDefaults()
-        dpDefaults.set(NSLocale.current.identifier, forKey: "locale")
+        dpDefaults.set(NSLocale.current.regionCode, forKey: "locale")
         dpDefaults.set(dpDefaults.integer(forKey: "total_jailbreaks") + 1, forKey: "total_jailbreaks")
         DispatchQueue(label: "Dopamine").async {
             sleep(1)
