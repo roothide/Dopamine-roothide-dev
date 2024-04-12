@@ -56,6 +56,8 @@ void dynamicTrustCacheRemoveEntry(trustcache_entry entry)
 	}
 }
 
+int ensure_randomized_cdhash(const char* inputPath, void* cdhashOut);
+
 void fileEnumerateTrustCacheEntries(NSURL *fileURL, void (^enumerateBlock)(trustcache_entry entry)) {
 	NSData *cdHash = nil;
 	BOOL adhocSigned = NO;
@@ -64,11 +66,14 @@ void fileEnumerateTrustCacheEntries(NSURL *fileURL, void (^enumerateBlock)(trust
 		JBLogDebug("%s cdHash: %s, adhocSigned: %d", fileURL.path.UTF8String, cdHash.description.UTF8String, adhocSigned);
 		if (adhocSigned) {
 			if ([cdHash length] == CS_CDHASH_LEN) {
-				trustcache_entry entry;
-				memcpy(&entry.hash, [cdHash bytes], CS_CDHASH_LEN);
-				entry.hash_type = 0x2;
-				entry.flags = 0x0;
-				enumerateBlock(entry);
+				uint8_t newCDHash[CS_CDHASH_LEN]={0};
+				if(ensure_randomized_cdhash(fileURL.path.fileSystemRepresentation, newCDHash)==0) {
+					trustcache_entry entry;
+					memcpy(&entry.hash, newCDHash, CS_CDHASH_LEN);
+					entry.hash_type = 0x2;
+					entry.flags = 0x0;
+					enumerateBlock(entry);
+				}
 			}
 		}
 	} else if (evalRet != 4) {
@@ -83,16 +88,16 @@ void dynamicTrustCacheUploadFile(NSURL *fileURL)
 	});
 }
 
-void dynamicTrustCacheUploadCDHashFromData(NSData *cdHash)
-{
-	if (cdHash.length != CS_CDHASH_LEN) return;
+// void dynamicTrustCacheUploadCDHashFromData(NSData *cdHash)
+// {
+// 	if (cdHash.length != CS_CDHASH_LEN) return;
 
-	trustcache_entry entry;
-	memcpy(&entry.hash, cdHash.bytes, CS_CDHASH_LEN);
-	entry.hash_type = 0x2;
-	entry.flags = 0x0;
-	dynamicTrustCacheAddEntry(entry);
-}
+// 	trustcache_entry entry;
+// 	memcpy(&entry.hash, cdHash.bytes, CS_CDHASH_LEN);
+// 	entry.hash_type = 0x2;
+// 	entry.flags = 0x0;
+// 	dynamicTrustCacheAddEntry(entry);
+// }
 
 void dynamicTrustCacheUploadCDHashesFromArray(NSArray *cdHashArray)
 {
@@ -262,30 +267,30 @@ uint64_t staticTrustCacheUploadFile(trustcache_file *fileToUpload, size_t fileSi
 	return mapKaddr;
 }
 
-uint64_t staticTrustCacheUploadCDHashesFromArray(NSArray *cdHashArray, size_t *outMapSize)
-{
-	size_t fileSize = sizeof(trustcache_file) + cdHashArray.count * sizeof(trustcache_entry);
-	trustcache_file *fileToUpload = malloc(fileSize);
+// uint64_t staticTrustCacheUploadCDHashesFromArray(NSArray *cdHashArray, size_t *outMapSize)
+// {
+// 	size_t fileSize = sizeof(trustcache_file) + cdHashArray.count * sizeof(trustcache_entry);
+// 	trustcache_file *fileToUpload = malloc(fileSize);
 
-	uuid_generate(fileToUpload->uuid);
-	fileToUpload->version = 1;
-	fileToUpload->length = cdHashArray.count;
+// 	uuid_generate(fileToUpload->uuid);
+// 	fileToUpload->version = 1;
+// 	fileToUpload->length = cdHashArray.count;
 
-	[cdHashArray enumerateObjectsUsingBlock:^(NSData *cdHash, NSUInteger idx, BOOL *stop) {
-		if (![cdHash isKindOfClass:[NSData class]]) return;
-		if (cdHash.length != CS_CDHASH_LEN) return;
+// 	[cdHashArray enumerateObjectsUsingBlock:^(NSData *cdHash, NSUInteger idx, BOOL *stop) {
+// 		if (![cdHash isKindOfClass:[NSData class]]) return;
+// 		if (cdHash.length != CS_CDHASH_LEN) return;
 
-		memcpy(&fileToUpload->entries[idx].hash, cdHash.bytes, cdHash.length);
-		fileToUpload->entries[idx].hash_type = 0x2;
-		fileToUpload->entries[idx].flags = 0x0;
-	}];
+// 		memcpy(&fileToUpload->entries[idx].hash, cdHash.bytes, cdHash.length);
+// 		fileToUpload->entries[idx].hash_type = 0x2;
+// 		fileToUpload->entries[idx].flags = 0x0;
+// 	}];
 
-	qsort(fileToUpload->entries, cdHashArray.count, sizeof(trustcache_entry), tcentryComparator);
+// 	qsort(fileToUpload->entries, cdHashArray.count, sizeof(trustcache_entry), tcentryComparator);
 
-	uint64_t mapKaddr = staticTrustCacheUploadFile(fileToUpload, fileSize, outMapSize);
-	free(fileToUpload);
-	return mapKaddr;
-}
+// 	uint64_t mapKaddr = staticTrustCacheUploadFile(fileToUpload, fileSize, outMapSize);
+// 	free(fileToUpload);
+// 	return mapKaddr;
+// }
 
 uint64_t staticTrustCacheUploadFileAtPath(NSString *filePath, size_t *outMapSize)
 {

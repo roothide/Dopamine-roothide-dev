@@ -121,7 +121,7 @@ __attribute__((constructor)) static void initializer(void)
 
 	if(comingFromUserspaceReboot)
 	{
-		NSString* systemhookFilePath = [NSString stringWithFormat:@"%@/systemhook-%s.dylib", jbrootPath(@"/basebin/.fakelib"), JBRAND];
+		NSString* systemhookFilePath = [NSString stringWithFormat:@"%@/systemhook-%s.dylib", jbrootPath(@"/basebin"), JBRAND];
 		
 		int unsandbox(const char* dir, const char* file);
 		unsandbox("/usr/lib", systemhookFilePath.fileSystemRepresentation);

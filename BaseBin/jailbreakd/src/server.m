@@ -516,15 +516,18 @@ void jailbreakd_received_message(mach_port_t machPort, bool systemwide)
 					case JBD_MSG_INIT_ENVIRONMENT: {
 						int64_t result = 0;
 						if (gPPLRWStatus == kPPLRWStatusInitialized && gKCallStatus == kKcallStatusFinalized) {
-							result = makeFakeLib();
+
+							NSString* systemhookFilePath = [NSString stringWithFormat:@"%@/systemhook-%@.dylib", jbrootPath(@"/basebin"), bootInfo_getObject(@"JBRAND")];
+							[[NSFileManager defaultManager] copyItemAtPath:jbrootPath(@"/basebin/systemhook.dylib") toPath:systemhookFilePath error:nil];
 
 							/*
+							result = makeFakeLib();
 							if (result == 0) {
 								result = setFakeLibBindMountActive(true);
 							}
 							/*/
 							// int unsandbox(const char* dir, const char* file);
-							// NSString* systemhookFilePath = [NSString stringWithFormat:@"%@/systemhook-%@.dylib", jbrootPath(@"/basebin/.fakelib"), bootInfo_getObject(@"JBRAND")];
+							// NSString* systemhookFilePath = [NSString stringWithFormat:@"%@/systemhook-%@.dylib", jbrootPath(@"/basebin"), bootInfo_getObject(@"JBRAND")];
 							// unsandbox("/usr/lib", systemhookFilePath.fileSystemRepresentation); 
 							//*/
 						}
@@ -668,15 +671,15 @@ void jailbreakd_received_message(mach_port_t machPort, bool systemwide)
 					}
 
 					case JBD_SET_FAKELIB_VISIBLE: {
-						int64_t result = 0;
-						if (gPPLRWStatus == kPPLRWStatusInitialized && gKCallStatus == kKcallStatusFinalized) {
-							bool visible = xpc_dictionary_get_bool(message, "visible");
-							result = setFakeLibVisible(visible);
-						}
-						else {
-							result = JBD_ERR_PRIMITIVE_NOT_INITIALIZED;
-						}
-						xpc_dictionary_set_int64(reply, "result", result);
+						// int64_t result = 0;
+						// if (gPPLRWStatus == kPPLRWStatusInitialized && gKCallStatus == kKcallStatusFinalized) {
+						// 	bool visible = xpc_dictionary_get_bool(message, "visible");
+						// 	result = setFakeLibVisible(visible);
+						// }
+						// else {
+						// 	result = JBD_ERR_PRIMITIVE_NOT_INITIALIZED;
+						// }
+						// xpc_dictionary_set_int64(reply, "result", result);
 						break;
 					}
 				}

@@ -165,7 +165,7 @@ int basebinUpdateFromTar(NSString *basebinPath, bool rebootWhenDone)
 	}
 
 	// Update systemhook.dylib on bind mount
-	NSString* systemhookFilePath = [NSString stringWithFormat:@"%@/systemhook-%@.dylib", jbrootPath(@"/basebin/.fakelib"), bootInfo_getObject(@"JBRAND")];
+	NSString* systemhookFilePath = [NSString stringWithFormat:@"%@/systemhook-%@.dylib", jbrootPath(@"/basebin"), bootInfo_getObject(@"JBRAND")];
 	if ([[NSFileManager defaultManager] fileExistsAtPath:systemhookFilePath]) {
 		[[NSFileManager defaultManager] removeItemAtPath:systemhookFilePath error:nil];
 	}
