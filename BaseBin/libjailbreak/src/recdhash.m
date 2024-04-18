@@ -4,6 +4,7 @@
 #include <choma/Host.h>
 #include <choma/MachOByteOrder.h>
 #include <choma/CodeDirectory.h>
+#include "log.h"
 
 extern CS_DecodedBlob *csd_superblob_find_best_code_directory(CS_DecodedSuperBlob *decodedSuperblob);
 extern bool csd_code_directory_calculate_page_hash(CS_DecodedBlob *codeDirBlob, MachO *macho, int slot, uint8_t *pageHashOut);
@@ -66,7 +67,7 @@ int calc_cdhash(uint8_t *cdBlob, size_t cdBlobSize, uint8_t hashtype, void *cdha
     // Longest possible buffer, will cut it off at the end as cdhash size is fixed
     uint8_t cdhash[CC_SHA384_DIGEST_LENGTH];
 
-    printf("head=%llx  %lx\n", *(uint64_t*)cdBlob, cdBlobSize);
+    JBLogDebug("head=%llx  %lx\n", *(uint64_t*)cdBlob, cdBlobSize);
 
     switch (hashtype) {
 		case CS_HASHTYPE_SHA160_160: {
@@ -99,12 +100,16 @@ int ensure_randomized_cdhash(const char* inputPath, void* cdhashOut)
 		return -1;
 		
 	// Initialise the FAT structure
-    printf("Initialising FAT structure from %s.\n", inputPath);
+    JBLogDebug("Initialising FAT structure from %s.\n", inputPath);
     FAT *fat = fat_init_for_writing(inputPath);
     if (!fat) return -1;
 
     MachO *macho = ljb_fat_find_preferred_slice(fat);
-    printf("preferred slice: %llx\n", macho->archDescriptor.offset);
+	if(!macho) {
+		fat_free(fat);
+		return -1;
+	}
+    JBLogDebug("preferred slice: %llx\n", macho->archDescriptor.offset);
 
 	__block int foundCount = 0;
     __block uint64_t textsegoffset = 0;
@@ -127,7 +132,7 @@ int ensure_randomized_cdhash(const char* inputPath, void* cdhashOut)
 		}
 		if (loadCommand.cmd == LC_CODE_SIGNATURE) {
 			struct linkedit_data_command *csLoadCommand = ((struct linkedit_data_command *)cmd);
-			printf("LC_CODE_SIGNATURE: %x\n", csLoadCommand->dataoff);
+			JBLogDebug("LC_CODE_SIGNATURE: %x\n", csLoadCommand->dataoff);
 
 			linkedit = *csLoadCommand;
 
@@ -143,18 +148,18 @@ int ensure_randomized_cdhash(const char* inputPath, void* cdhashOut)
 	}
 
     uint64_t* rd = (uint64_t*)&(textsegment.segname[sizeof(textsegment.segname)-sizeof(uint64_t)]);
-    printf("__TEXT: %llx,%llx, %016llX\n", textsegoffset, textsegment.fileoff, *rd);
+    JBLogDebug("__TEXT: %llx,%llx, %016llX\n", textsegoffset, textsegment.fileoff, *rd);
 
     int retval=-1;
 
     CS_SuperBlob *superblob = macho_read_code_signature(macho);
     if (!superblob) {
-        printf("Error: no code signature found, please fake-sign the binary at minimum before running the bypass.\n");
+        JBLogDebug("Error: no code signature found, please fake-sign the binary at minimum before running the bypass.\n");
 		fat_free(fat);
         return -1;
     }
 
-    printf("super blob: %x %x %d\n", superblob->magic, BIG_TO_HOST(superblob->length), BIG_TO_HOST(superblob->count));
+    JBLogDebug("super blob: %x %x %d\n", superblob->magic, BIG_TO_HOST(superblob->length), BIG_TO_HOST(superblob->count));
 
     CS_DecodedSuperBlob *decodedSuperblob = csd_superblob_decode(superblob);
 	if(!decodedSuperblob) {
@@ -197,7 +202,7 @@ int ensure_randomized_cdhash(const char* inputPath, void* cdhashOut)
 		for (uint32_t i = 0; i < BIG_TO_HOST(superblob->count); i++) {
 			CS_BlobIndex curIndex = superblob->index[i];
 			BLOB_INDEX_APPLY_BYTE_ORDER(&curIndex, BIG_TO_HOST_APPLIER);
-			//printf("decoding %u (type: %x, offset: 0x%x)\n", i, curIndex.type, curIndex.offset);
+			//JBLogDebug("decoding %u (type: %x, offset: 0x%x)\n", i, curIndex.type, curIndex.offset);
 
 			if(curIndex.type == bestCDBlob->type)
 			{

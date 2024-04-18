@@ -493,6 +493,127 @@ void applyKbdFix(void)
 	killall("/System/Library/TextInput/kbd", false);
 }
 
+
+
+#include <pwd.h>
+#include <libgen.h>
+#include <stdio.h>
+#include <libproc.h>
+#include <libproc_private.h>
+
+//some process may be killed by sandbox if call systme getppid()
+pid_t __getppid()
+{
+    struct proc_bsdinfo procInfo;
+	if (proc_pidinfo(getpid(), PROC_PIDTBSDINFO, 0, &procInfo, sizeof(procInfo)) <= 0) {
+		return -1;
+	}
+    return procInfo.pbi_ppid;
+}
+
+#define CONTAINER_PATH_PREFIX   "/private/var/mobile/Containers/Data/" // +/Application,PluginKitPlugin,InternalDaemon
+
+void redirectEnvPath(const char* rootdir)
+{
+    // char executablePath[PATH_MAX]={0};
+    // uint32_t bufsize=sizeof(executablePath);
+    // if(_NSGetExecutablePath(executablePath, &bufsize)==0 && strstr(executablePath,"testbin2"))
+    //     printf("redirectNSHomeDir %s, %s\n\n", rootdir, getenv("CFFIXED_USER_HOME"));
+
+    //for now libSystem should be initlized, container should be set.
+
+    char* homedir = NULL;
+
+/* 
+there is a bug in NSHomeDirectory,
+if a containerized root process changes its uid/gid, 
+NSHomeDirectory will return a home directory that it cannot access. (exclude NSTemporaryDirectory)
+We just keep this bug:
+*/
+    if(!issetugid()) // issetugid() should always be false at this time. (but how about persona-mgmt? idk)
+    {
+        homedir = getenv("CFFIXED_USER_HOME");
+        if(homedir)
+        {
+            if(strncmp(homedir, CONTAINER_PATH_PREFIX, sizeof(CONTAINER_PATH_PREFIX)-1) == 0)
+            {
+                return; //containerized
+            }
+            else
+            {
+                homedir = NULL; //from parent, drop it
+            }
+        }
+    }
+
+    if(!homedir) {
+        struct passwd* pwd = getpwuid(geteuid());
+        if(pwd && pwd->pw_dir) {
+            homedir = pwd->pw_dir;
+        }
+    }
+
+    // if(!homedir) {
+    //     //CFCopyHomeDirectoryURL does, but not for NSHomeDirectory
+    //     homedir = getenv("HOME");
+    // }
+
+    if(!homedir) {
+        homedir = "/var/empty";
+    }
+
+    char newhome[PATH_MAX]={0};
+    snprintf(newhome,sizeof(newhome),"%s/%s",rootdir,homedir);
+    setenv("CFFIXED_USER_HOME", newhome, 1);
+}
+
+void redirectDirs(const char* rootdir)
+{
+    do { // only for jb process because some system process may crash when chdir
+        
+        char executablePath[PATH_MAX]={0};
+        uint32_t bufsize=sizeof(executablePath);
+        if(_NSGetExecutablePath(executablePath, &bufsize) != 0)
+            break;
+        
+        char realexepath[PATH_MAX];
+        if(!realpath(executablePath, realexepath))
+            break;
+            
+        char realjbroot[PATH_MAX];
+        if(!realpath(rootdir, realjbroot))
+            break;
+        
+        if(realjbroot[strlen(realjbroot)] != '/')
+            strcat(realjbroot, "/");
+        
+        if(strncmp(realexepath, realjbroot, strlen(realjbroot)) != 0)
+            break;
+
+        //for jailbroken binaries
+        redirectEnvPath(rootdir);
+    
+        pid_t ppid = __getppid();
+        assert(ppid > 0);
+        if(ppid != 1)
+            break;
+        
+        char pwd[PATH_MAX];
+        if(getcwd(pwd, sizeof(pwd)) == NULL)
+            break;
+        if(strcmp(pwd, "/") != 0)
+            break;
+    
+        assert(chdir(rootdir)==0);
+        
+    } while(0);
+}
+
+//export for PatchLoader
+__attribute__((visibility("default"))) int PLRequiredJIT() {
+	return jbdswDebugMe();
+}
+
 char HOOK_DYLIB_PATH[PATH_MAX] = {0}; //"/usr/lib/systemhook.dylib"
 __attribute__((constructor)) static void initializer(void)
 {
@@ -503,6 +624,8 @@ __attribute__((constructor)) static void initializer(void)
 
 	JBRAND = strdup(getenv("JBRAND"));
 	JBROOT = strdup(getenv("JBROOT"));
+
+	redirectDirs(JBROOT);
 
 	struct dl_info di={0};
     dladdr((void*)initializer, &di);
