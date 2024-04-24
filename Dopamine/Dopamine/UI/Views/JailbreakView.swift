@@ -112,9 +112,9 @@ struct JailbreakView: View {
                         if !isJailbreaking {
                             Spacer()
                             
-                            Text("RootHide Dopamine  \(Bundle.main.infoDictionary?["CFBundleShortVersionString"] as? String ?? "Unknown")")
-                                .foregroundColor(.white)
-                                .opacity(0.3)
+//                            Text("RootHide Dopamine  \(Bundle.main.infoDictionary?["CFBundleShortVersionString"] as? String ?? "Unknown")")
+//                                .foregroundColor(.white)
+//                                .opacity(0.3)
                         }
                     }
                     .frame(maxWidth: .infinity, maxHeight: .infinity)

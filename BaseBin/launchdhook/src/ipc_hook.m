@@ -1,6 +1,11 @@
 #import <Foundation/Foundation.h>
+#import <libjailbreak/libjailbreak.h>
+#import <libproc.h>
 #import <sandbox.h>
 #import "substrate.h"
+
+NSString* getAppIdentifierForPath(const char* path);
+BOOL roothideBlacklistedApp(NSString* identifier);
 
 int (*sandbox_check_by_audit_token_orig)(audit_token_t au, const char *operation, int sandbox_filter_type, ...);
 int sandbox_check_by_audit_token_hook(audit_token_t au, const char *operation, int sandbox_filter_type, ...)
@@ -21,8 +26,22 @@ int sandbox_check_by_audit_token_hook(audit_token_t au, const char *operation, i
 	if (name && operation) {
 		if (strcmp(operation, "mach-lookup") == 0) {
 			if (strncmp((char *)name, "cy:", 3) == 0 || strncmp((char *)name, "lh:", 3) == 0) {
-				/* always allow */
-				return 0;
+				
+				bool allow=true;
+				char pathbuf[PATH_MAX]={0};
+				pid_t pid = audit_token_to_pid(au);
+				if(pid>0 && proc_pidpath(pid, pathbuf, sizeof(pathbuf))>0) {
+					NSString* appIdentifier = getAppIdentifierForPath(pathbuf);
+					if(appIdentifier && roothideBlacklistedApp(appIdentifier)) {
+						JBLogDebug("%s roothideBlacklistedApp:%s, %s", name, appIdentifier.UTF8String, path);
+						allow=false;
+					} 
+				}
+				
+				if(allow) {
+					/* always allow */
+					return 0;
+				}
 			}
 		}
 	}
