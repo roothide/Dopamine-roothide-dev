@@ -33,7 +33,7 @@ int sandbox_check_by_audit_token_hook(audit_token_t au, const char *operation, i
 				if(pid>0 && proc_pidpath(pid, pathbuf, sizeof(pathbuf))>0) {
 					NSString* appIdentifier = getAppIdentifierForPath(pathbuf);
 					if(appIdentifier && roothideBlacklistedApp(appIdentifier)) {
-						JBLogDebug("%s roothideBlacklistedApp:%s, %s", name, appIdentifier.UTF8String, path);
+						JBLogDebug("%s roothideBlacklistedApp:%s, %s", name, appIdentifier.UTF8String, pathbuf);
 						allow=false;
 					} 
 				}
