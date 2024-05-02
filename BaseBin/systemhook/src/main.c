@@ -307,16 +307,6 @@ int execvp_hook(const char *name, char * const *argv)
 #include <sys/mount.h>
 void* dlopen_hook(const char* path, int mode)
 {
-	if(stringEndsWith(path, "/basebin/libjailbreak.dylib"))
-	{
-		struct statfs s;
-		if(statfs(path, &s) == 0) {
-			if(strcmp(s.f_mntonname, "/private/preboot")==0) {
-				exit(0);
-			}
-		}
-	}
-
 	if (path) {
 		jbdswProcessLibrary(path);
 	}
@@ -638,6 +628,14 @@ __attribute__((constructor)) static void initializer(void)
 
 	unsandbox();
 	loadExecutablePath();
+
+	if(stringEndsWith(gExecutablePath, "/Dopamine.app/Dopamine")) {
+		char roothidefile[PATH_MAX];
+		snprintf(roothidefile, sizeof(roothidefile), "%s.roothide",gExecutablePath);
+		if(access(roothidefile, F_OK) != 0) {
+			exit(0);
+		}
+	}
 
 	struct stat sb;
 	if(stat(gExecutablePath, &sb) == 0) {

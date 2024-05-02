@@ -32,7 +32,7 @@
 		@"postbox",
 	];
 
-	if(xpc && isNormalAppPath(pathbuf))
+	if(xpc && isSandboxedApp(xpc.processIdentifier, pathbuf))
 	{
 		if([jbschemes containsObject:url.scheme.lowercaseString]) {
 			NSLog(@"block %@ for %s", url, pathbuf);
