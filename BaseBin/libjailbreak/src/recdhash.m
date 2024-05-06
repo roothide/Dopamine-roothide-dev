@@ -56,7 +56,7 @@ bool csd_superblob_is_adhoc_signed(CS_DecodedSuperBlob *superblob)
 
 FAT *fat_init_for_writing(const char *filePath)
 {
-    MemoryStream *stream = file_stream_init_from_path(filePath, 0, FILE_STREAM_SIZE_AUTO, FILE_STREAM_FLAG_WRITABLE | FILE_STREAM_FLAG_AUTO_EXPAND);
+    MemoryStream *stream = file_stream_init_from_path(filePath, 0, FILE_STREAM_SIZE_AUTO, FILE_STREAM_FLAG_WRITABLE);
     if (stream) {
         return fat_init_from_memory_stream(stream);;
     }
